@@ -1,7 +1,7 @@
 # Architecture
 
-Status: Phase 0 (skeleton and schema). Sections marked *planned* describe code that later
-phases add; they are here so the shape is agreed before it is built.
+Status: Phases 0-4 built (schema, scoring, mock ingestion, AI layer, dashboard). Sections
+marked *planned* describe Phase 5-6 work.
 
 ## Overview
 
@@ -102,8 +102,19 @@ in `DATABASE_URL`. If `auth.users` is absent it first applies
 same JWT claim settings Supabase uses) and the `anon` / `authenticated` / `service_role`
 roles. The same migration files are what `supabase db push` applies to a real project.
 
-## Pipeline (*planned*, Phases 2–3, 6)
+## Pipeline (built; scheduling via Inngest is *planned* for Phase 6)
 
 `scheduleTick` (hourly) → `ingestCreator` per due creator: upsert posts → fetch insights →
 append metrics → recompute baselines → score → themes → report → update plan in place.
 AI failure never fails a run; deterministic results are stored and the AI sections stay null.
+
+Today the pipeline runs from `pnpm ingest` or the dashboard's "Update now" (inline, see
+DECISIONS D-022). Code path: `lib/services/runService.ts` -> `scoringService` (pure
+`lib/scoring`) -> `reportService` (themes + report) -> `planService` (weekly plan).
+
+## Auth and data access
+
+`lib/auth/session.ts` resolves the signed-in user (Supabase Auth, or the local signed cookie
+in development). Services then open a *user scope* transaction (`SET LOCAL ROLE
+authenticated` + JWT claims) so Postgres RLS decides what the user can see or change.
+Background work uses *system scope*. See DECISIONS D-015 and D-020.

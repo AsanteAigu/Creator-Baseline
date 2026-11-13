@@ -10,14 +10,17 @@ baseline, summarises comment themes, and drafts a weekly content plan.
 ## Commands
 
 ```
-pnpm dev            # Next dev server
-pnpm typecheck      # tsc --noEmit — must be clean
-pnpm lint           # ESLint, includes layer-boundary rules — must be clean
-pnpm db:migrate     # apply supabase/migrations to DATABASE_URL
-pnpm db:seed        # demo workspace: 3 creators × 40 posts (re-runnable)
-pnpm db:reset       # drop + migrate + seed (local only; refuses Supabase hosts)
+pnpm dev               # Next dev server (sign in: owner@demo.agency / creator-baseline-demo)
+pnpm typecheck         # tsc --noEmit — must be clean
+pnpm lint              # ESLint, includes layer-boundary rules — must be clean
+pnpm test              # unit tests (scoring, AI structured output, helpers)
+pnpm test:integration  # pipeline + RLS tests against TEST_DATABASE_URL (reset each run)
+pnpm exec playwright test  # the one E2E path (needs a seeded, ingested DB)
+pnpm db:migrate        # apply supabase/migrations to DATABASE_URL
+pnpm db:seed           # demo workspace, users, 3 creators x 40 posts (re-runnable)
+pnpm ingest            # run the pipeline once for every creator
+pnpm db:reset          # drop + migrate + seed + ingest (local only; refuses Supabase hosts)
 ```
-
 Runs end to end with `INSTAGRAM_SOURCE=mock` and `AI_PROVIDER=mock` and no external credentials.
 
 ## Layers (one-way: app → services → repositories → db)
