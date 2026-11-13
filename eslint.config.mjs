@@ -32,6 +32,7 @@ const layerRules = [
   },
   {
     files: ["lib/scoring/**/*.ts"],
+    ignores: ["lib/scoring/**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
