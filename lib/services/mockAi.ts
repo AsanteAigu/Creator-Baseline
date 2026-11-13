@@ -22,8 +22,20 @@ function extremeSignal(post: ReportPostInput, pick: "max" | "min"): [string, num
   return entries[0] ?? ["likes", 1];
 }
 
+const FORMAT_WORD: Record<string, string> = { reel: "reel", image: "photo", carousel: "carousel" };
+const dayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
+
+/** "1 Nov" from an ISO calendar date. */
+function day(iso: string): string {
+  return dayFmt.format(new Date(`${iso}T12:00:00Z`));
+}
+
+function formatWord(format: string): string {
+  return FORMAT_WORD[format] ?? format;
+}
+
 function describe(post: ReportPostInput): string {
-  return `the ${post.format} from ${post.postedOn} ("${post.caption.slice(0, 50)}")`;
+  return `the ${day(post.postedOn)} ${formatWord(post.format)} ("${post.caption.slice(0, 50)}")`;
 }
 
 const THEME_RULES: { label: string; sentiment: ThemesOutput["themes"][number]["sentiment"]; test: RegExp; paraphrase: string }[] = [
@@ -58,7 +70,7 @@ export function mockReport(input: ReportInput): ReportOutput {
   const working = input.top.slice(0, 3).map((p) => {
     const [signal, r] = extremeSignal(p, "max");
     return {
-      point: `${capitalise(p.format)}s like ${describe(p)} are outperforming on ${SIGNAL_NAMES[signal] ?? signal}.`,
+      point: `${capitalise(describe(p))} beat this creator's usual on ${SIGNAL_NAMES[signal] ?? signal}.`,
       evidence: `Scored ${p.score.toFixed(2)} with ${SIGNAL_NAMES[signal] ?? signal} at ${r.toFixed(1)}x usual.`,
     };
   });
@@ -72,7 +84,7 @@ export function mockReport(input: ReportInput): ReportOutput {
   const best = input.top[0];
   return {
     headline: best
-      ? `${capitalise(best.format)}s are leading this period; the best scored ${best.score.toFixed(2)}.`
+      ? `${capitalise(formatWord(best.format))}s are leading this period; the best scored ${best.score.toFixed(2)}.`
       : "Not enough scored posts yet to call a trend.",
     what_working: working.length > 0 ? working : [{ point: "Too early to say.", evidence: "No posts have been scored yet." }],
     what_not_working:
@@ -80,26 +92,55 @@ export function mockReport(input: ReportInput): ReportOutput {
   };
 }
 
+const HOOKS = [
+  "You saved this one more than anything else this month, so here is part two.",
+  "Same idea, half the time.",
+  "The question you keep asking, answered in 30 seconds.",
+  "I tried the version you asked for. Here is what happened.",
+  "Three mistakes I made the first time, so you don't.",
+];
+
 export function mockPlan(input: PlanInput): PlanOutput {
-  const sources = input.top.length > 0 ? input.top : input.bottom;
-  const theme = input.themes[0];
+  // Distinct source posts first, then audience themes, so ideas do not repeat.
+  const sources = [...input.top, ...input.bottom.slice(0, 2)].filter(
+    (p, i, all) => all.findIndex((q) => q.caption === p.caption) === i,
+  );
+  const themes = [...input.themes];
+  let s = 0;
+  let t = 0;
   const ideas = input.weekDates.map((date, i) => {
-    const src = sources[i % Math.max(1, sources.length)];
+    const useTheme = themes.length > 0 && (i % 3 === 2 || s >= sources.length);
+    if (useTheme) {
+      const theme = themes[t % themes.length]!;
+      t += 1;
+      return {
+        title: `Answer the comments: ${theme.label.toLowerCase()}`,
+        format: "reel" as const,
+        hook: HOOKS[2]!,
+        reason: `This came up ${theme.count} times in the latest comment sample.`,
+        data_ref: `Audience theme: ${theme.label}`,
+        suggested_date: date,
+      };
+    }
+    const src = sources[s % Math.max(1, sources.length)];
+    s += 1;
     const [signal, r] = src ? extremeSignal(src, "max") : ["likes", 1];
-    const useTheme = theme !== undefined && i % 3 === 2;
+    const strong = src ? src.score >= 1 : true;
     return {
-      title: useTheme ? `Answer: ${theme.label.toLowerCase()}` : `New take: ${src?.caption.slice(0, 60) ?? "audience favourite"}`,
+      title: src ? `${strong ? "Follow-up to" : "New angle on"} "${src.caption.slice(0, 60)}"` : "Audience favourite, refreshed",
       format: (src?.format ?? "reel") as PlanOutput["ideas"][number]["format"],
-      hook: useTheme ? "You asked, so here it is." : "Here is the version you saved last time, made faster.",
-      reason: useTheme
-        ? `Comments keep raising this (${theme.count} in the latest sample).`
-        : `Builds on a post whose ${SIGNAL_NAMES[signal] ?? signal} ran at ${r.toFixed(1)}x usual.`,
-      data_ref: useTheme ? `theme: ${theme.label}` : src ? `${src.format}, ${src.postedOn}, score ${src.score.toFixed(2)}` : "no scored posts yet",
+      hook: HOOKS[i % HOOKS.length]!,
+      reason: src
+        ? strong
+          ? `Its ${SIGNAL_NAMES[signal] ?? signal} ran at ${r.toFixed(1)}x usual; a follow-up builds on that.`
+          : `The topic has potential but this ${formatWord(src.format)} underperformed; try a different opening.`
+        : "No scored posts yet, so this starts from the creator's core topic.",
+      data_ref: src ? `${capitalise(formatWord(src.format))}, ${day(src.postedOn)}, score ${src.score.toFixed(2)}` : "No scored posts yet",
       suggested_date: date,
     };
   });
   return {
-    summary: `Build the week around the formats scoring above usual for @${input.username}, and answer what the audience keeps asking for in comments.`,
+    summary: `Build the week around what is scoring above usual for @${input.username}, and answer what the audience keeps asking for in comments.`,
     ideas,
   };
 }
