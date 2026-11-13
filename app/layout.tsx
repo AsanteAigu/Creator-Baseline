@@ -15,7 +15,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-GB">
+    // Browser extensions inject attributes on <html> before hydration; this suppresses only
+    // that element's attribute diff, not mismatches deeper in the tree.
+    <html lang="en-GB" suppressHydrationWarning>
       <body className="min-h-dvh">{children}</body>
     </html>
   );
