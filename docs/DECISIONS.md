@@ -165,3 +165,99 @@ request returns immediately; the service boundary (`requestManualRun`) stays the
 The mock source generates posts relative to the creator's `connected_at`, so timestamps are
 stable across runs (re-runs are identical) yet recent after each reseed. The viral fixture
 post's engagement boost was raised so it reads as "Strong" for every creator in the demo.
+
+## D-024 — Reels: average watch time compared with the creator's own median (Confirm)
+
+The requirements table defines watch time as `avg_watch_time_ms / duration_ms`, but the
+Instagram Graph API exposes `ig_reels_avg_watch_time` and no media length (the IG Media
+reference has no duration field). Dividing by a value we cannot get would make 35% of a
+Reel's score uncomputable on real data.
+
+Decision: the watch-time rate is the raw average watch time in milliseconds, and the
+per-signal ratio divides it by the creator's median average watch time, like every other
+signal. Alternatives: keep dividing by fixture durations only, so mock and real scores
+differ; drop watch time on real data and renormalise, which silently changes the weights
+the client signed off; ask the client for a duration per post, adding manual work. The
+golden 1.27 example is unaffected because its Reels share a length.
+
+Client should confirm that the §5 wording "share of the video watched" becomes "average
+time watched, compared with their usual".
+
+## D-025 — Insights that are not available yet do not fail the run
+
+Instagram returns an empty insights data set when a metric is unavailable; data can lag up
+to 48 hours. `mapInsights` still throws when a payload is present but a requested metric is
+missing, so API drift is loud. The Graph source turns an empty data set into `NO_DATA`; the
+pipeline stores the post without a new snapshot and a later run picks it up. The post shows
+as `too_early` (no metrics) until then.
+
+Alternatives: fail the whole run because one post has no data (brittle); store zeros (would
+pull the creator's baseline down). Why: the client-facing pipeline stays reliable without
+pretending data exists.
+
+## D-026 — `getMediaInsights` takes the media item, not just its id
+
+Which metrics can be requested depends on `media_product_type`: `ig_reels_avg_watch_time`
+is Reels-only. Passing the item the pipeline already has avoids an extra
+`GET /{media-id}` per post (40 calls per run). The §6 signature changed; behaviour did not.
+
+Alternatives: fetch each media object again (extra calls, extra failure points); request
+every metric on every post (Meta rejects unsupported metrics).
+
+## D-027 — Tokens refresh at the start of a run
+
+Long-lived tokens last about 60 days. `resolveAccessToken` refreshes when the token expires
+within 7 days, at the start of each ingest (every 6 hours by default). A transient refresh
+failure keeps using a token that still has more than a day left; an auth failure or less
+than a day left marks the creator `needs_reauth`. Phase 6's scheduler inherits this without
+a separate refresh cron.
+
+Alternatives: a daily refresh job (another schedule for no benefit); refreshing on every
+run (needless writes).
+
+## D-028 — OAuth scopes, and optional Facebook Login for Business configuration
+
+Without `INSTAGRAM_LOGIN_CONFIG_ID`, the dialog requests `instagram_basic`,
+`instagram_manage_insights`, `pages_show_list` and `pages_read_engagement`. With a
+configuration id, the dialog sends `config_id`, `response_type=code` and
+`override_default_response_type=true` instead of scopes. `business_management` is not
+requested: the four above cover media, insights and comments.
+
+Alternatives: request `business_management` too (broader than needed); use Meta's JS SDK
+(the flow is manual and server-side, so no SDK is needed).
+
+## D-029 — Connecting is an upsert; reconnecting must match the account
+
+A completed login inserts by `(workspace_id, ig_user_id)` or updates that row, so connecting
+the same Instagram account twice never hits the unique key. A reconnect started from a
+creator carries `creatorId` in the signed state and is rejected unless the login's Instagram
+user id matches that creator; the user is then told to use "Connect account". Only owners
+and admins may connect. Reconnecting clears `last_synced_at`, so the next scheduled run
+fetches fresh data.
+
+Alternatives: create a duplicate row (two cards for one account); silently repoint a
+creator to a different Instagram account (its history would describe someone else).
+
+## D-030 — The mock source uses the real OAuth routes
+
+`MockInstagramSource.authorizationUrl` redirects straight to `/api/creators/callback` with a
+fixture key as the code, so the connect/reconnect UI, signed state and callback are
+exercised end-to-end without a Meta app. The optional `?account=` on the connect route
+chooses a fixture. There is no automatic run after connecting: the first update is manual
+("Update now") or the next scheduled run (Phase 6).
+
+
+## D-031 - Local mock mode derives a token key from SESSION_SECRET
+
+Production and \INSTAGRAM_SOURCE=graph\ always require \TOKEN_ENCRYPTION_KEY\; \lib/config\
+refuses to boot without it. Local mock mode may leave it unset so the documented
+\".env.local needs only DATABASE_URL\" setup keeps working, but fixture logins still go through
+the real encryption path. In that case the key is derived from \SESSION_SECRET\ with HKDF
+label \creator-baseline/token-encryption/v1\, separate from the OAuth-state label, so one
+secret is never used raw for two purposes. Setting the real key later makes the old mock
+tokens undecryptable, which surfaces as \
+eeds_reauth\ and a reconnect; only fixture accounts
+are affected.
+
+Alternatives: refuse mock connects without a key (breaks the one-variable local setup and
+the demo); store mock tokens in plaintext (a second code path that would never be tested).

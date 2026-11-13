@@ -40,23 +40,47 @@ export interface RawComment {
   text: string;
 }
 
+/** What a completed login gives us. The token is the long-lived one, ready to encrypt. */
+export interface ConnectedAccount {
+  token: string;
+  expiresAt: Date;
+  igUserId: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 export interface InstagramSource {
   listRecentMedia(creator: InstagramCreator, since: Date): Promise<RawMedia[]>;
-  getMediaInsights(creator: InstagramCreator, mediaId: string): Promise<RawInsights>;
+  /**
+   * Takes the whole media item, not just its id: which insight metrics can be requested
+   * depends on its product type (REELS-only watch time), and the caller already has it
+   * (DECISIONS.md D-026).
+   */
+  getMediaInsights(creator: InstagramCreator, media: RawMedia): Promise<RawInsights>;
   /** Added beyond the §6 interface: the themes call needs comments (DECISIONS.md D-014). */
   listComments(creator: InstagramCreator, mediaId: string, limit: number): Promise<RawComment[]>;
-  exchangeCode(code: string): Promise<{ token: string; expiresAt: Date; igUserId: string }>;
+  /**
+   * Where to send the user to grant access. Added beyond §6 so the route stays the same in
+   * both modes; `loginHint` lets the mock choose which fixture account "logs in".
+   */
+  authorizationUrl(state: string, loginHint?: string): string;
+  /** Returns the account profile as well as the token (§6 returned only the id; D-027). */
+  exchangeCode(code: string): Promise<ConnectedAccount>;
   refreshToken(token: string): Promise<{ token: string; expiresAt: Date }>;
 }
 
 /**
  * `retryable` follows §6: 429 and 5xx retry, other 4xx are permanent. The message is safe
  * to show a client; it never contains a token or a raw API body.
+ *
+ * `NO_DATA` means Instagram has no insights for this post yet (data can be delayed up to
+ * 48 hours). The post is skipped for this run and picked up by a later one (D-025).
  */
 export class InstagramError extends Error {
   constructor(
     message: string,
-    readonly code: "UNAVAILABLE" | "RATE_LIMITED" | "AUTH" | "PERMANENT",
+    readonly code: "UNAVAILABLE" | "RATE_LIMITED" | "AUTH" | "PERMANENT" | "NO_DATA",
     readonly retryable: boolean,
   ) {
     super(message);

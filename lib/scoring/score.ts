@@ -66,7 +66,7 @@ export function scorePost(
   if (!isOldEnough(post.postedAt, now, config.minAgeHours)) return unscored(post.id, "too_early");
 
   // Edge case 4: reach 0 (or never measured) cannot be rated.
-  const rates = computeRates(post.metrics, post.durationMs);
+  const rates = computeRates(post.metrics);
   if (rates === null) return unscored(post.id, "too_early");
 
   // Edge case 2: not enough history of this format.

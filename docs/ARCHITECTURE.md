@@ -1,7 +1,7 @@
 # Architecture
 
-Status: Phases 0-4 built (schema, scoring, mock ingestion, AI layer, dashboard). Sections
-marked *planned* describe Phase 5-6 work.
+Status: Phases 0-5 built (schema, scoring, mock + Graph ingestion, AI layer, dashboard,
+OAuth). Sections marked *planned* describe Phase 6 work.
 
 ## Overview
 
@@ -111,6 +111,26 @@ AI failure never fails a run; deterministic results are stored and the AI sectio
 Today the pipeline runs from `pnpm ingest` or the dashboard's "Update now" (inline, see
 DECISIONS D-022). Code path: `lib/services/runService.ts` -> `scoringService` (pure
 `lib/scoring`) -> `reportService` (themes + report) -> `planService` (weekly plan).
+
+## Instagram adapter
+
+`lib/instagram/` puts the API behind `InstagramSource`. `INSTAGRAM_SOURCE=mock` serves
+deterministic fixtures; `graph` uses `GraphInstagramSource` against Graph API v27.0. The
+Graph client keeps one request in flight, times each out, retries 429/5xx with exponential
+backoff and paces itself from Meta's usage headers. Tokens travel in the `Authorization`
+header; no URL, header or response body is logged.
+
+Logins: `/api/creators/connect` sets a signed, HTTP-only state cookie and redirects to
+Facebook Login for Business; `/api/creators/callback` checks the nonce, exchanges the code
+server-side for a long-lived user token, finds the Instagram professional account behind the
+Facebook Page and stores the token AES-256-GCM encrypted (`access_token_ciphertext`,
+`token_iv`, `token_expires_at`). Reconnects carry the creator id in the signed state and
+must match the same Instagram account (D-029). Tokens are refreshed inside the last seven
+days of their ~60-day life at the start of a run (D-027). An auth failure sets
+`creators.status = needs_reauth`; the dashboard shows a banner with a Reconnect action.
+
+The watch-time signal, insight availability and the interface shape differ from §5/§6 in
+three deliberate ways; see D-024 to D-026.
 
 ## Auth and data access
 

@@ -5,13 +5,18 @@ import {
   type FixtureCreator,
   type FixturePost,
 } from "@/lib/fixtures/creators";
-import { InstagramError, type InstagramCreator, type InstagramSource, type RawMedia } from "./types";
+import {
+  InstagramError,
+  type ConnectedAccount,
+  type InstagramCreator, type InstagramSource, type RawMedia } from "./types";
 
 const TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
 export interface MockSourceOptions {
   /** Makes every data call fail; used by tests and the failure demo. */
   failWith?: InstagramError;
+  /** Where the fake login "returns" to: the real callback route, so both modes share it. */
+  redirectUri?: string;
 }
 
 /**
@@ -38,8 +43,8 @@ export class MockInstagramSource implements InstagramSource {
       }));
   }
 
-  async getMediaInsights(creator: InstagramCreator, mediaId: string) {
-    const post = this.find(creator, mediaId);
+  async getMediaInsights(creator: InstagramCreator, media: RawMedia) {
+    const post = this.find(creator, media.id);
     return { ...post.metrics };
   }
 
@@ -51,13 +56,24 @@ export class MockInstagramSource implements InstagramSource {
     return fixtureComments(fixture.niche, mediaId, count).map((text) => ({ text }));
   }
 
-  async exchangeCode(code: string) {
-    const fixture = FIXTURE_CREATORS.find((f) => f.key === code) ?? FIXTURE_CREATORS[0];
-    if (!fixture) throw new InstagramError("No fixture creators are defined.", "PERMANENT", false);
+  /** Skips Meta entirely: the "code" is the fixture key, so the callback picks that account. */
+  authorizationUrl(state: string, loginHint?: string): string {
+    const url = new URL(this.options.redirectUri ?? "http://localhost:3000/api/creators/callback");
+    url.searchParams.set("code", loginHint ?? FIXTURE_CREATORS[0]?.key ?? "");
+    url.searchParams.set("state", state);
+    return url.toString();
+  }
+
+  async exchangeCode(code: string): Promise<ConnectedAccount> {
+    const fixture = FIXTURE_CREATORS.find((f) => f.key === code);
+    if (!fixture) throw new InstagramError("That demo account doesn't exist.", "PERMANENT", false);
     return {
       token: `mock-token-${fixture.key}`,
       expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
       igUserId: fixture.igUserId,
+      username: fixture.username,
+      displayName: fixture.displayName,
+      avatarUrl: null,
     };
   }
 

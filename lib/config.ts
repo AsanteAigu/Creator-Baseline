@@ -32,6 +32,8 @@ const serverEnvSchema = z
     INSTAGRAM_APP_ID: optionalString,
     INSTAGRAM_APP_SECRET: optionalString,
     INSTAGRAM_REDIRECT_URI: optionalUrl,
+    /** Facebook Login for Business configuration. When unset, the dialog asks for scopes. */
+    INSTAGRAM_LOGIN_CONFIG_ID: optionalString,
     TOKEN_ENCRYPTION_KEY: optionalString,
 
     UPSTASH_REDIS_REST_URL: optionalUrl,
@@ -86,6 +88,8 @@ const serverEnvSchema = z
       need("NEXT_PUBLIC_SUPABASE_URL", "in production");
       need("NEXT_PUBLIC_SUPABASE_ANON_KEY", "in production");
       need("SUPABASE_SERVICE_ROLE_KEY", "in production");
+      // Also signs the OAuth state cookie, which production needs even in mock mode.
+      need("TOKEN_ENCRYPTION_KEY", "in production");
       need("UPSTASH_REDIS_REST_URL", "in production");
       need("UPSTASH_REDIS_REST_TOKEN", "in production");
       need("INNGEST_EVENT_KEY", "in production");

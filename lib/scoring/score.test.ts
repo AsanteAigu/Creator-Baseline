@@ -172,6 +172,21 @@ describe("zero median renormalisation", () => {
     expect(result.score).toBeCloseTo(1, 10);
   });
 
+  it("compares raw average watch time with the creator's median, without needing duration", () => {
+    // The Graph API gives no Reel length, so real reels arrive with durationMs null (D-024).
+    const usual = rateMetrics({ watch: 0.4, sends: 0.01, saves: 0.01, likes: 0.05, comments: 0.004 });
+    const history = Array.from({ length: 6 }, (_, i) => ({ ...reel(`h${i}`, 48 + i * 24, usual), durationMs: null }));
+    const p = {
+      ...reel("p", 30, rateMetrics({ watch: 0.8, sends: 0.01, saves: 0.01, likes: 0.05, comments: 0.004 })),
+      durationMs: null,
+    };
+    const result = scorePost(p, [p, ...history], DEFAULT_SCORING_CONFIG, NOW);
+    expect(result.signalsUsed).toContain("watch_time");
+    expect(result.rValues.watch_time).toBeCloseTo(2, 10);
+    // 0.35*2 + 0.65*1
+    expect(result.score).toBeCloseTo(1.35, 10);
+  });
+
   it("falls back to baseline_building when fewer than 2 signals survive", () => {
     const usual = rateMetrics({ sends: 0, saves: 0, likes: 0.05, comments: 0 });
     const history = Array.from({ length: 6 }, (_, i) => post(`h${i}`, "image", 48 + i * 24, usual));

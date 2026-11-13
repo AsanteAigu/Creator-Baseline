@@ -13,7 +13,7 @@ const OTHER_WS = "00000000-0000-4000-8000-0000000000b2";
 let ownerA = "";
 let viewerA = "";
 let ownerB = "";
-let mayaId = "";
+let theoId = "";
 let suggestionId = "";
 
 async function expectAppError(p: Promise<unknown>, code: AppError["code"]): Promise<void> {
@@ -39,12 +39,14 @@ beforeAll(async () => {
     on conflict do nothing
   `;
 
-  const [maya] = await sql<{ id: string }[]>`select id from creators where username = 'maya.cooks.uk'`;
-  mayaId = maya?.id ?? "";
-  await ingestCreator(mayaId, { trigger: "manual" });
-  const plan = await getCurrentPlan(ownerA, mayaId);
+  // Theo, not Maya: the pipeline suite owns Maya's run windows, and two files ingesting
+  // the same creator in the same window would make the report counts order-dependent.
+  const [theo] = await sql<{ id: string }[]>`select id from creators where username = 'theo.trains'`;
+  theoId = theo?.id ?? "";
+  await ingestCreator(theoId, { trigger: "manual" });
+  const plan = await getCurrentPlan(ownerA, theoId);
   suggestionId = plan?.suggestions[0]?.id ?? "";
-  if (!ownerA || !viewerA || !ownerB || !mayaId || !suggestionId) throw new Error("security fixtures incomplete");
+  if (!ownerA || !viewerA || !ownerB || !theoId || !suggestionId) throw new Error("security fixtures incomplete");
 });
 
 afterAll(async () => {
@@ -64,9 +66,9 @@ describe("cross-workspace isolation", () => {
   });
 
   it("refuses B reading A's creator overview, posts or plan, as not found", async () => {
-    await expectAppError(getOverview(ownerB, mayaId), "NOT_FOUND");
-    await expectAppError(listPosts(ownerB, mayaId, {}, 10, null), "NOT_FOUND");
-    await expectAppError(getCurrentPlan(ownerB, mayaId), "NOT_FOUND");
+    await expectAppError(getOverview(ownerB, theoId), "NOT_FOUND");
+    await expectAppError(listPosts(ownerB, theoId, {}, 10, null), "NOT_FOUND");
+    await expectAppError(getCurrentPlan(ownerB, theoId), "NOT_FOUND");
   });
 
   it("refuses B patching A's suggestion and leaves it unchanged", async () => {
@@ -77,7 +79,7 @@ describe("cross-workspace isolation", () => {
   });
 
   it("refuses B starting a run on A's creator", async () => {
-    await expectAppError(requestManualRun(ownerB, mayaId), "NOT_FOUND");
+    await expectAppError(requestManualRun(ownerB, theoId), "NOT_FOUND");
   });
 
   it("hides token columns from user sessions entirely", async () => {
@@ -101,7 +103,7 @@ describe("roles inside a workspace", () => {
 
   it("refuses a viewer changing scoring settings or starting a run", async () => {
     await expectAppError(updateSettings(viewerA, { cap: 4 }), "FORBIDDEN");
-    await expectAppError(requestManualRun(viewerA, mayaId), "FORBIDDEN");
+    await expectAppError(requestManualRun(viewerA, theoId), "FORBIDDEN");
   });
 
   it("lets an owner change settings and audits it", async () => {

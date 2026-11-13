@@ -1,10 +1,11 @@
-import { AlertTriangle, KeyRound } from "lucide-react";
+import { AlertTriangle, KeyRound, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { Banner } from "@/components/banner";
 import { CreatorAvatar } from "@/components/creator-avatar";
 import { EmptyState } from "@/components/empty-state";
 import { Sparkline } from "@/components/sparkline";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { formatDateTime, formatScore } from "@/lib/format";
@@ -12,19 +13,56 @@ import { listCreatorCards } from "@/lib/services/creatorService";
 
 export const metadata = { title: "Accounts" };
 
-export default async function DashboardPage() {
+/** Coarse reasons from the OAuth callback; nothing Meta said is echoed. */
+const CONNECT_ERRORS: Record<string, string> = {
+  denied: "The Facebook login was cancelled, so nothing changed.",
+  state: "That connection link expired. Please start again.",
+  mismatch: "That login belongs to a different Instagram account. To add it, use Connect account.",
+  forbidden: "Only owners and admins can connect accounts.",
+  failed:
+    "We couldn't connect that account. Check that it is an Instagram professional account linked to a Facebook Page, then try again.",
+};
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connect?: string }>;
+}) {
   const userId = await requirePageUser();
   const result = await withPageErrors(() => listCreatorCards(userId));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
   const { context, cards } = result;
   const failed = cards.filter((c) => c.latestRun?.status === "failed");
+  const canManage = context.role === "owner" || context.role === "admin";
+  const connect = (await searchParams).connect;
+  const connectError = connect !== undefined ? CONNECT_ERRORS[connect] : undefined;
 
   return (
     <>
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Accounts</h1>
-        <p className="text-sm text-muted-foreground">{context.workspaceName}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Accounts</h1>
+          <p className="text-sm text-muted-foreground">{context.workspaceName}</p>
+        </div>
+        {canManage ? (
+          // A full navigation, not a client-side Link: this route redirects to Facebook.
+          <a href="/api/creators/connect" className={buttonVariants({ variant: "outline" })}>
+            <UserPlus aria-hidden />
+            Connect account
+          </a>
+        ) : null}
       </div>
+
+      {connect === "ok" ? (
+        <Banner tone="info" title="Account connected.">
+          Scores will appear after the account&apos;s first update.
+        </Banner>
+      ) : null}
+      {connectError !== undefined ? (
+        <Banner tone="error" title="Account not connected.">
+          {connectError}
+        </Banner>
+      ) : null}
 
       {failed.length > 0 ? (
         <Banner tone="error" title={`The last update didn't finish for ${failed.map((c) => `@${c.creator.username}`).join(", ")}.`}>

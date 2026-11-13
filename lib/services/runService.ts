@@ -16,6 +16,7 @@ import { ensureWeekPlan } from "./planService";
 import { REPORT_PERIOD_DAYS, generateReportForRun } from "./reportService";
 import { scoreCreator, settingsToConfig } from "./scoringService";
 import { intervalHours, runWindowStart } from "./time";
+import { resolveAccessToken } from "./tokenService";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -71,19 +72,29 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
     id: creator.id,
     igUserId: creator.igUserId,
     connectedAt: creator.connectedAt,
-    // Token decryption arrives with the Graph adapter (Phase 5); the mock needs none.
+    // Decrypted (and refreshed when close to expiry) for real accounts; null in mock mode.
     accessToken: null,
   };
 
   // 1-3. Fetch from Instagram. Sequential on purpose: at most one in-flight request per creator.
   let postsSeen = 0;
   try {
+    igCreator.accessToken = await resolveAccessToken(creator.id, source, now);
     const media = (await source.listRecentMedia(igCreator, new Date(now.getTime() - LOOKBACK_DAYS * DAY_MS))).filter(
       isScorableMedia,
     );
     postsSeen = media.length;
     const insights: { media: RawMedia; metrics: RawInsights }[] = [];
-    for (const m of media) insights.push({ media: m, metrics: await source.getMediaInsights(igCreator, m.id) });
+    for (const m of media) {
+      try {
+        insights.push({ media: m, metrics: await source.getMediaInsights(igCreator, m) });
+      } catch (err) {
+        // Insights can lag by up to 48 hours; a post without them is picked up by a later
+        // run. A missing metric inside a present payload still fails loudly (D-025).
+        if (err instanceof InstagramError && err.code === "NO_DATA") continue;
+        throw err;
+      }
+    }
 
     await withRepos(asSystem(), async (r) => {
       const ids = await r.posts.upsertMany(
@@ -112,6 +123,9 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
     const message = isIg
       ? instagramFailureMessage(now, intervalHours(settings.scheduleInterval))
       : "Something went wrong while updating this account. We'll try again on the next scheduled update.";
+    if (isIg && err.code === "AUTH") {
+      await withRepos(asSystem(), (r) => r.creators.setStatus(creator.id, "needs_reauth"));
+    }
     await withRepos(asSystem(), (r) => r.runs.fail(run.id, now, code, message));
     return { status: "failed", runId: run.id, errorCode: code, errorMessage: message };
   }
@@ -147,6 +161,8 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
   await withRepos(asSystem(), async (r) => {
     await r.runs.succeed(run.id, now, postsSeen, postsScored, aiNote);
     await r.creators.markSynced(creator.id, now);
+    // A run that reached Instagram proves the token works again.
+    if (creator.status === "needs_reauth") await r.creators.setStatus(creator.id, "active");
   });
 
   return { status: "succeeded", runId: run.id, postsSeen, postsScored, aiNote: aiNote?.code ?? null };

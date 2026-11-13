@@ -4,18 +4,17 @@ export type Rates = Record<Signal, number | null>;
 
 /**
  * Turns counts into per-reach rates (§5). Returns null when the post cannot be rated at
- * all (no snapshot, or reach 0 — edge case 4). Watch rate is null when the post has no
- * duration or no watch time, which is normal for photos and carousels.
+ * all (no snapshot, or reach 0 — edge case 4).
+ *
+ * Watch time is the raw average watch time in ms, not watch time / duration: the Instagram
+ * API does not expose a Reel's length (DECISIONS.md D-024). Comparing it with the creator's
+ * own median keeps it a relative signal like the others. Null for photos and carousels.
  */
-export function computeRates(metrics: MetricSnapshot | null, durationMs: number | null): Rates | null {
+export function computeRates(metrics: MetricSnapshot | null): Rates | null {
   if (metrics === null || metrics.reach <= 0) return null;
   const { reach } = metrics;
-  const watchRate =
-    metrics.avgWatchTimeMs !== null && durationMs !== null && durationMs > 0
-      ? metrics.avgWatchTimeMs / durationMs
-      : null;
   return {
-    watch_time: watchRate,
+    watch_time: metrics.avgWatchTimeMs,
     sends: metrics.shares / reach,
     saves: metrics.saves / reach,
     likes: metrics.likes / reach,

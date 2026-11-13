@@ -25,7 +25,7 @@ export function computeBaseline(posts: readonly ScorablePost[], opts: BaselineOp
   for (const post of posts) {
     if (post.format !== opts.format || post.id === opts.excludePostId) continue;
     if (!isOldEnough(post.postedAt, opts.now, opts.minAgeHours)) continue;
-    const rates = computeRates(post.metrics, post.durationMs);
+    const rates = computeRates(post.metrics);
     if (rates !== null) eligible.push({ post, rates });
   }
   eligible.sort((a, b) => b.post.postedAt.getTime() - a.post.postedAt.getTime());

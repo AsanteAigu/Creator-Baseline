@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronRight, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiDisclaimer } from "@/components/ai-disclaimer";
@@ -23,7 +23,13 @@ export const metadata = { title: "Account" };
 
 const SENTIMENT_TEXT = { positive: "Positive", neutral: "Neutral", negative: "Negative" } as const;
 
-export default async function AccountPage({ params }: { params: Promise<{ creatorId: string }> }) {
+export default async function AccountPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ creatorId: string }>;
+  searchParams: Promise<{ connected?: string }>;
+}) {
   const { creatorId } = await params;
   if (!uuidParam.safeParse(creatorId).success) notFound();
   const userId = await requirePageUser();
@@ -35,6 +41,7 @@ export default async function AccountPage({ params }: { params: Promise<{ creato
   const { overview: o, settings } = result;
   const canRun = o.role === "owner" || o.role === "admin";
   const name = o.creator.displayName ?? o.creator.username;
+  const justConnected = (await searchParams).connected === "1";
 
   const sentimentTotal = o.insight ? o.insight.positive + o.insight.neutral + o.insight.negative : 0;
   const scoredCount = o.labelCounts.strong + o.labelCounts.normal + o.labelCounts.weak;
@@ -69,8 +76,29 @@ export default async function AccountPage({ params }: { params: Promise<{ creato
         </div>
       </section>
 
+      {justConnected ? (
+        <Banner tone="info" title="Account connected.">
+          Use “Update now” to fetch this account&apos;s posts. Scores appear for posts that are at least{" "}
+          {settings.minAgeHours} hours old.
+        </Banner>
+      ) : null}
       {o.creator.status === "needs_reauth" ? (
-        <Banner tone="warn" title="This account needs reconnecting.">
+        <Banner
+          tone="warn"
+          title="This account needs reconnecting."
+          action={
+            canRun ? (
+              // Full navigation: the route redirects to Facebook.
+              <a
+                href={`/api/creators/connect?creatorId=${o.creator.id}`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <KeyRound aria-hidden />
+                Reconnect
+              </a>
+            ) : undefined
+          }
+        >
           Instagram asked for permission again. Until it is reconnected, the scores below won&apos;t update.
         </Banner>
       ) : null}
