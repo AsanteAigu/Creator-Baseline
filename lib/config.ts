@@ -41,6 +41,9 @@ const serverEnvSchema = z
     INNGEST_SIGNING_KEY: optionalString,
 
     APP_BASE_URL: z.url().default("http://localhost:3000"),
+
+    /** Signs the local-dev session cookie when Supabase Auth is not configured. */
+    SESSION_SECRET: optionalString,
   })
   .superRefine((env, ctx) => {
     const need = (key: keyof typeof env, reason: string) => {
@@ -70,6 +73,13 @@ const serverEnvSchema = z
           message: "must be 32 bytes, base64-encoded",
         });
       }
+    }
+
+    if (env.NEXT_PUBLIC_SUPABASE_URL === undefined) {
+      need("SESSION_SECRET", "for local sign-in when Supabase is not configured");
+    }
+    if (env.SESSION_SECRET !== undefined && env.SESSION_SECRET.length < 32) {
+      ctx.addIssue({ code: "custom", path: ["SESSION_SECRET"], message: "must be at least 32 characters" });
     }
 
     if (env.NODE_ENV === "production") {

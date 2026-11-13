@@ -34,12 +34,16 @@ async function main(): Promise<void> {
       console.log("reset: dropped public and app_meta schemas");
     }
 
-    const [probe] = await sql<{ has_auth: boolean }[]>`
-      select to_regclass('auth.users') is not null as has_auth
+    // GoTrue's auth.users has instance_id; the local shim's does not.
+    const [probe] = await sql<{ is_supabase: boolean }[]>`
+      select exists (
+        select 1 from information_schema.columns
+        where table_schema = 'auth' and table_name = 'users' and column_name = 'instance_id'
+      ) as is_supabase
     `;
-    if (!probe?.has_auth) {
+    if (!probe?.is_supabase) {
       await sql.unsafe(await readFile(SHIM_PATH, "utf8"));
-      console.log("applied local auth shim (no Supabase auth schema found)");
+      console.log("applied local auth shim (not a Supabase database)");
     }
     // Idempotent; needed after --reset recreates the public schema without its grants.
     await sql.unsafe(`grant usage on schema public to anon, authenticated, service_role`);

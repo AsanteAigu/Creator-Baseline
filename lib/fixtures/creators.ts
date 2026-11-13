@@ -188,7 +188,7 @@ export function generateCreatorPosts(creator: FixtureCreator, now: Date): Fixtur
     const reach = Math.round(creator.baseReach * jitter(rng, 0.35) * reachMultiplier * maturity);
 
     const rates = BASE_RATES[format];
-    const rateBoost = i === viralIndex ? 1.6 : 1;
+    const rateBoost = i === viralIndex ? 2.2 : 1;
     const likes = Math.round(reach * rates.likes * jitter(rng, 0.25) * rateBoost);
     const comments =
       i === zeroCommentsIndex ? 0 : Math.round(reach * rates.comments * jitter(rng, 0.4) * rateBoost);

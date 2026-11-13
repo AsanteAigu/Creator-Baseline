@@ -15,9 +15,11 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "db:reset": "tsx scripts/migrate.ts --reset && tsx scripts/seed.ts",
+    "db:reset": "tsx scripts/migrate.ts --reset && tsx scripts/seed.ts && tsx scripts/ingest.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ingest": "tsx scripts/ingest.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

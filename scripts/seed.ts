@@ -5,8 +5,12 @@
  * row) before being recreated, so reseeding never duplicates anything.
  *
  * Writes posts and one metrics snapshot per post under a bookkeeping run per creator.
- * It does not write baselines, scores, reports or plans — the pipeline produces those.
+ * It does not write baselines, scores, reports or plans — run `pnpm ingest` for those.
+ *
+ * Demo users (owner + viewer) are created in Supabase Auth when it is configured, otherwise
+ * in the local auth shim. Password: SEED_DEMO_PASSWORD, or the local default below.
  */
+import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 import {
   FIXTURE_CREATORS,
@@ -17,6 +21,47 @@ import { requireDatabaseUrl } from "./env";
 
 const DEMO_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001";
 const DEMO_WORKSPACE_NAME = "Demo Agency";
+const LOCAL_DEMO_PASSWORD = "creator-baseline-demo";
+const DEMO_USERS = [
+  { email: "owner@demo.agency", role: "owner" },
+  { email: "viewer@demo.agency", role: "viewer" },
+] as const;
+
+/** Returns the auth user id for each demo email, creating users where needed. */
+async function ensureDemoUsers(sql: postgres.Sql, password: string): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  if (url && serviceKey) {
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const { data: existing, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    if (listError) throw listError;
+    for (const u of DEMO_USERS) {
+      const found = existing.users.find((x) => x.email === u.email);
+      if (found) {
+        ids.set(u.email, found.id);
+        continue;
+      }
+      const { data, error } = await admin.auth.admin.createUser({ email: u.email, password, email_confirm: true });
+      if (error || !data.user) throw error ?? new Error(`could not create ${u.email}`);
+      ids.set(u.email, data.user.id);
+    }
+    return ids;
+  }
+
+  for (const u of DEMO_USERS) {
+    const [row] = await sql<{ id: string }[]>`
+      insert into auth.users (email, encrypted_password)
+      values (${u.email}, crypt(${password}, gen_salt('bf')))
+      on conflict (email) do update set encrypted_password = excluded.encrypted_password
+      returning id
+    `;
+    if (!row) throw new Error(`could not create ${u.email}`);
+    ids.set(u.email, row.id);
+  }
+  return ids;
+}
 
 async function main(): Promise<void> {
   const sql = postgres(requireDatabaseUrl(), { max: 1, onnotice: () => {} });
@@ -26,6 +71,9 @@ async function main(): Promise<void> {
   windowStart.setUTCMinutes(0, 0, 0);
 
   try {
+    const password = process.env.SEED_DEMO_PASSWORD?.trim() || LOCAL_DEMO_PASSWORD;
+    const userIds = await ensureDemoUsers(sql, password);
+
     await sql.begin(async (tx) => {
       await tx`delete from public.workspaces where id = ${DEMO_WORKSPACE_ID}`;
       await tx`
@@ -34,6 +82,12 @@ async function main(): Promise<void> {
       `;
       // Column defaults hold the §5 scoring defaults.
       await tx`insert into public.scoring_settings (workspace_id) values (${DEMO_WORKSPACE_ID})`;
+      for (const u of DEMO_USERS) {
+        await tx`
+          insert into public.workspace_members (workspace_id, user_id, role)
+          values (${DEMO_WORKSPACE_ID}, ${userIds.get(u.email) ?? null}, ${u.role})
+        `;
+      }
 
       for (const fixture of FIXTURE_CREATORS) {
         const posts = generateCreatorPosts(fixture, now);
@@ -61,6 +115,7 @@ async function main(): Promise<void> {
         console.log(`seeded ${fixture.username}: ${posts.length} posts (${summarise(posts)})`);
       }
     });
+    console.log(`demo sign-in: ${DEMO_USERS.map((u) => `${u.email} (${u.role})`).join(", ")}`);
   } finally {
     await sql.end();
   }

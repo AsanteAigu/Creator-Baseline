@@ -3,7 +3,7 @@
 -- Supabase provides the `auth` schema and the anon / authenticated / service_role roles.
 -- This shim recreates the minimum the migrations depend on, so the schema (and its RLS)
 -- can be exercised on a plain Postgres install without Docker. scripts/migrate.ts applies
--- it only when auth.users does not already exist.
+-- it whenever the database is not a Supabase project. Every statement is idempotent.
 
 do $$
 begin
@@ -21,11 +21,16 @@ $$;
 
 create schema if not exists auth;
 
+create extension if not exists pgcrypto;
+
+-- encrypted_password mirrors the GoTrue column (bcrypt), used only by local dev sign-in.
 create table if not exists auth.users (
-  id         uuid primary key default gen_random_uuid(),
-  email      text unique,
-  created_at timestamptz not null default now()
+  id                 uuid primary key default gen_random_uuid(),
+  email              text unique,
+  encrypted_password text,
+  created_at         timestamptz not null default now()
 );
+alter table auth.users add column if not exists encrypted_password text;
 
 -- Mirrors Supabase's definition: the subject claim of the request JWT.
 create or replace function auth.uid()
