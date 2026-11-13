@@ -45,7 +45,7 @@ const layerRules = [
     },
   },
   {
-    files: ["lib/services/**/*.ts"],
+    files: ["lib/services/**/*.ts", "jobs/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

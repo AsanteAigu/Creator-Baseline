@@ -6,6 +6,9 @@ import { LoginForm } from "./login-form";
 
 export const metadata = { title: `Sign in · ${PRODUCT_NAME}` };
 
+// Reads the session cookie: never prerender this page at build time.
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   if (await getSessionUser()) redirect("/dashboard");
   return (

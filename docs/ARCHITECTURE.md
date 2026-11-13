@@ -1,7 +1,7 @@
 # Architecture
 
-Status: Phases 0-5 built (schema, scoring, mock + Graph ingestion, AI layer, dashboard,
-OAuth). Sections marked *planned* describe Phase 6 work.
+Status: Phases 0-6 built (schema, scoring, mock + Graph ingestion, AI layer, dashboard,
+OAuth, scheduler/purge hardening and deploy docs).
 
 ## Overview
 
@@ -86,6 +86,10 @@ is deliberately not a foreign key so the record of a purge survives the purge.
   jobs, never in a user request.
 - **Comments** are processed in memory and reduced to counts and paraphrased themes. No table
   has a column that could hold comment text or a username.
+- **Deletion** is a single tested code path. `deletion_requests` and `audit_log` rows outlive
+  the creator because `deletion_requests.creator_id` is text, not a foreign key.
+- **No secrets in the browser.** `pnpm check:secrets` scans `.next/static` after a build for
+  the names of server-only variables and for their values when present.
 
 ## Environment
 
@@ -102,15 +106,50 @@ in `DATABASE_URL`. If `auth.users` is absent it first applies
 same JWT claim settings Supabase uses) and the `anon` / `authenticated` / `service_role`
 roles. The same migration files are what `supabase db push` applies to a real project.
 
-## Pipeline (built; scheduling via Inngest is *planned* for Phase 6)
+## Pipeline
 
 `scheduleTick` (hourly) → `ingestCreator` per due creator: upsert posts → fetch insights →
 append metrics → recompute baselines → score → themes → report → update plan in place.
 AI failure never fails a run; deterministic results are stored and the AI sections stay null.
 
-Today the pipeline runs from `pnpm ingest` or the dashboard's "Update now" (inline, see
-DECISIONS D-022). Code path: `lib/services/runService.ts` -> `scoringService` (pure
-`lib/scoring`) -> `reportService` (themes + report) -> `planService` (weekly plan).
+Code path: `lib/services/runService.ts` -> `scoringService` (pure `lib/scoring`) ->
+`reportService` (themes + report) -> `planService` (weekly plan). The same function serves
+the scheduler, `pnpm ingest` and the dashboard's "Update now".
+
+## Jobs
+
+One Inngest app registered at `/api/inngest` (`jobs/index.ts` is the single list `serve()`
+receives):
+
+| Function | Trigger | Work |
+|---|---|---|
+| `schedule-tick` | hourly cron | `dueCreatorIds()` then one `creator/sync.requested` event per creator |
+| `ingest-creator` | typed event | `ingestCreator(..., { trigger: "schedule" })` in one retryable step |
+| `weekly-plan` | Monday 06:00 Europe/London | one step per active creator, budget-guarded |
+| `purge-expired` | daily 03:30 Europe/London | `failOrphans` + finish pending deletion requests |
+
+The hourly tick is the only ingestion schedule; there is deliberately no dynamic cron per
+creator (D-032). `ingestCreator` records Instagram and AI failures on the run row and returns
+normally, so Inngest retries only unexpected throws. `runs.claim` makes a repeated event for
+the same creator-window a no-op (`skipped: already_running`), and `failOrphans` clears runs
+whose invocation died.
+
+## Health
+
+`GET /api/health` (authenticated, workspace-scoped, D-034) returns the deploy commit, the
+migration ledger (or `null` when the host does not expose `app_meta`), and the latest run per
+creator. `status: "degraded"` means a creator needs reauth or its latest run failed; the
+response is still HTTP 200 so a monitor can distinguish it from an auth error.
+
+## Disconnect and deletion
+
+One path, `deleteCreator` in `lib/services/deletionService.ts`, used by the account page and
+`DELETE /api/creators/:id` (D-033). It checks membership and the owner/admin role, inserts a
+`deletion_requests` row, deletes the creator row (every child table cascades), marks the
+request complete, writes `audit_log`, and only then revokes the app's permissions at Meta.
+The local purge is authoritative; revocation is best effort and its failure is logged by
+class only. `purgeExpired` retries requests that did not complete. It is housekeeping, not a
+retention policy: past reports are kept (R7, D-035).
 
 ## Instagram adapter
 

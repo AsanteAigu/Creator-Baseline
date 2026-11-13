@@ -141,6 +141,11 @@ export class GraphInstagramSource implements InstagramSource {
     };
   }
 
+  /** Disconnect: removes this app's permissions for the user token at Meta (§11). */
+  async revokeToken(token: string): Promise<void> {
+    await this.client.delete("/me/permissions", {}, token);
+  }
+
   async listRecentMedia(creator: InstagramCreator, since: Date): Promise<RawMedia[]> {
     const token = requireToken(creator);
     const items = await this.getPaged<Record<string, unknown>>(

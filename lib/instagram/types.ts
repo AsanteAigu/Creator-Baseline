@@ -68,6 +68,8 @@ export interface InstagramSource {
   /** Returns the account profile as well as the token (§6 returned only the id; D-027). */
   exchangeCode(code: string): Promise<ConnectedAccount>;
   refreshToken(token: string): Promise<{ token: string; expiresAt: Date }>;
+  /** Disconnect: best-effort revoke of the app's permissions at Meta (§11, D-033). */
+  revokeToken(token: string): Promise<void>;
 }
 
 /**

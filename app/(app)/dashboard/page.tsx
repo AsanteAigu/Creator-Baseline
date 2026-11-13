@@ -46,6 +46,7 @@ export default async function DashboardPage({
         </div>
         {canManage ? (
           // A full navigation, not a client-side Link: this route redirects to Facebook.
+          // eslint-disable-next-line @next/next/no-html-link-for-pages
           <a href="/api/creators/connect" className={buttonVariants({ variant: "outline" })}>
             <UserPlus aria-hidden />
             Connect account

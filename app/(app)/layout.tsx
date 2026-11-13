@@ -6,6 +6,9 @@ import { getSessionUser } from "@/lib/auth/session";
 import { PRODUCT_NAME } from "@/lib/config";
 import { signOutAction } from "../login/actions";
 
+// Every page in this segment reads the session cookie and live tenant data.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");

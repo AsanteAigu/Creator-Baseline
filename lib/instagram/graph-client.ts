@@ -55,17 +55,30 @@ export class GraphClient {
 
   /** `path` is either a Graph path (`/me/accounts`) or a `paging.next` URL Meta gave us. */
   async get(path: string, params: Record<string, string>, token: string | null): Promise<unknown> {
+    return this.request(this.buildUrl(path, params), this.headers(token), "GET");
+  }
+
+  /** Used only to revoke a token at Meta when an account is disconnected (D-033). */
+  async delete(path: string, params: Record<string, string>, token: string): Promise<unknown> {
+    return this.request(this.buildUrl(path, params), this.headers(token), "DELETE");
+  }
+
+  private buildUrl(path: string, params: Record<string, string>): URL {
     const url = path.startsWith("https://") ? new URL(path) : new URL(`${GRAPH_HOST}/${GRAPH_API_VERSION}${path}`);
     if (url.origin !== GRAPH_HOST) throw new InstagramError("Instagram returned an unexpected link.", "PERMANENT", false);
     // Paging links can echo a token back; ours goes in the header only.
     url.searchParams.delete("access_token");
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (token !== null) headers.Authorization = `Bearer ${token}`;
-    return this.request(url, headers);
+    return url;
   }
 
-  private async request(url: URL, headers: Record<string, string>): Promise<unknown> {
+  private headers(token: string | null): Record<string, string> {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token !== null) headers.Authorization = `Bearer ${token}`;
+    return headers;
+  }
+
+  private async request(url: URL, headers: Record<string, string>, method: "GET" | "DELETE"): Promise<unknown> {
     let lastError: InstagramError | null = null;
     for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
       if (attempt > 0) {
@@ -74,7 +87,7 @@ export class GraphClient {
       }
       await this.pace();
       try {
-        return await this.once(url, headers);
+        return await this.once(url, headers, method);
       } catch (err) {
         if (!(err instanceof InstagramError) || !err.retryable) throw err;
         lastError = err;
@@ -94,10 +107,10 @@ export class GraphClient {
     this.lastCallAt = Date.now();
   }
 
-  private async once(url: URL, headers: Record<string, string>): Promise<unknown> {
+  private async once(url: URL, headers: Record<string, string>, method: "GET" | "DELETE"): Promise<unknown> {
     let res: Response;
     try {
-      res = await this.fetchImpl(url, { headers, signal: AbortSignal.timeout(this.timeoutMs), cache: "no-store" });
+      res = await this.fetchImpl(url, { method, headers, signal: AbortSignal.timeout(this.timeoutMs), cache: "no-store" });
     } catch {
       throw new InstagramError("Instagram did not respond in time.", "UNAVAILABLE", true);
     }

@@ -45,6 +45,7 @@ function fakeSource(
     authorizationUrl: unused,
     exchangeCode: unused,
     refreshToken: refresh,
+    revokeToken: unused,
   };
 }
 

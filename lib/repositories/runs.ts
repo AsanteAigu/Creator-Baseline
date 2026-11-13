@@ -1,4 +1,5 @@
 import type { Tx } from "@/lib/db/client";
+import type { CreatorStatus } from "./creators";
 
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
 export type RunTrigger = "schedule" | "manual";
@@ -125,6 +126,59 @@ export function runsRepo(tx: Tx) {
         limit 1
       `;
       return row ? toRun(row) : null;
+    },
+
+    /** Health view: one row per creator in a workspace, with its latest run if any. */
+    async latestForWorkspace(workspaceId: string): Promise<
+      { creatorId: string; username: string; creatorStatus: CreatorStatus; run: Run | null }[]
+    > {
+      const rows = await tx<{
+        creator_id: string;
+        username: string;
+        creator_status: CreatorStatus;
+        run_id: string | null;
+        trigger: RunTrigger | null;
+        status: RunStatus | null;
+        window_start: Date | null;
+        started_at: Date | null;
+        finished_at: Date | null;
+        error_code: string | null;
+        error_message: string | null;
+        posts_seen: number | null;
+        posts_scored: number | null;
+      }[]>`
+        select c.id as creator_id, c.username, c.status as creator_status,
+               r.id as run_id, r.trigger, r.status, r.window_start, r.started_at, r.finished_at,
+               r.error_code, r.error_message, r.posts_seen, r.posts_scored
+        from public.creators c
+        left join lateral (
+          select * from public.runs where creator_id = c.id
+          order by started_at desc nulls last limit 1
+        ) r on true
+        where c.workspace_id = ${workspaceId}
+        order by c.username
+      `;
+      return rows.map((r) => ({
+        creatorId: r.creator_id,
+        username: r.username,
+        creatorStatus: r.creator_status,
+        run:
+          r.run_id === null || r.trigger === null || r.status === null || r.window_start === null
+            ? null
+            : {
+                id: r.run_id,
+                creatorId: r.creator_id,
+                trigger: r.trigger,
+                status: r.status,
+                windowStart: r.window_start,
+                startedAt: r.started_at,
+                finishedAt: r.finished_at,
+                errorCode: r.error_code,
+                errorMessage: r.error_message,
+                postsSeen: r.posts_seen ?? 0,
+                postsScored: r.posts_scored ?? 0,
+              },
+      }));
     },
   };
 }

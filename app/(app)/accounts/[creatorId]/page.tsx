@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AiDisclaimer } from "@/components/ai-disclaimer";
 import { Banner } from "@/components/banner";
 import { CreatorAvatar } from "@/components/creator-avatar";
+import { DisconnectButton } from "@/components/disconnect-button";
 import { EmptyState } from "@/components/empty-state";
 import { LabelBadge } from "@/components/label-badge";
 import { PostRow } from "@/components/post-row";
@@ -244,6 +245,16 @@ export default async function AccountPage({
         <ChevronRight aria-hidden className="size-4" />
       </Link>
 
+      {canRun ? (
+        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+          <h2 className="text-base font-semibold tracking-tight">Disconnect this account</h2>
+          <p className="text-sm text-muted-foreground">
+            Deletes this creator&apos;s posts, metrics, scores, reports and plans, and revokes the access token at
+            Meta. Past figures cannot be recovered.
+          </p>
+          <DisconnectButton creatorId={o.creator.id} name={name} />
+        </section>
+      ) : null}
     </>
   );
 }

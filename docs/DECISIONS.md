@@ -261,3 +261,72 @@ are affected.
 
 Alternatives: refuse mock connects without a key (breaks the one-variable local setup and
 the demo); store mock tokens in plaintext (a second code path that would never be tested).
+
+## D-032 - One hourly tick fans out events; no cron per creator
+
+`scheduleTick` runs hourly and asks `scheduleService.dueCreatorIds()` which creators are past
+their workspace's interval, then emits one typed `creator/sync.requested` event per creator.
+The interval lives in `scoring_settings.schedule_cron` (1-24 hours), and the due rule is
+`last_synced_at + interval <= now`, with a null `last_synced_at` always due. Inngest executes
+`ingestCreator` as a durable, retryable step per event, with per-creator concurrency 1.
+Only `active` creators are due: `needs_reauth` waits for a reconnect and `disconnected`
+rows are excluded, so the scheduler cannot spin on a rejected token.
+
+Alternatives: a dynamic cron per creator (Inngest schedules would need reconciling on every
+settings change and every connect/disconnect); a cron per interval bucket (three schedules
+and still a fan-out step); polling every minute (needless invocations).
+
+Why: §8 explicitly asks for this shape. One schedule is easy to reason about, a settings
+change takes effect on the next tick, and the interesting rule is a pure function tested
+without a database.
+
+## D-033 - Disconnect and deletion are one path; revocation comes after the purge
+
+`deleteCreator` is the only way a creator is removed. The account page's button and
+`DELETE /api/creators/:id` both call it. In order: check membership and owner/admin role
+(viewers get 403), insert a `deletion_requests` row, delete the creator row and let the
+schema cascade every child row, mark the request complete, write `audit_log`, then revoke
+the app's permissions at Meta with the decrypted token. A revocation failure is logged by
+error class only and does not undo the deletion. `purgeExpired` retries any request whose
+completion write was lost.
+
+Alternatives: soft-delete first and purge later (keeps the personal data the client asked us
+to remove, and every query would need a filter); revoke at Meta before deleting (a Meta
+outage would block deletion and leave the user unable to remove an account); separate
+"disconnect" and "delete" paths (two behaviours to test, and the requirement says deleting
+must be one tested path).
+
+Why: the local purge is the part we control and can prove; Meta is an external dependency.
+The deletion record and audit entry are written in the same transaction as the delete, so a
+successful purge can never be undocumented.
+
+## D-034 - `/api/health` is authenticated and workspace-scoped
+
+The health report contains the deploy commit, the migration ledger and the last run per
+creator (status, times, error code). Creator handles are tenant data, so the endpoint requires
+a session and reports only the caller's workspace; it is not a public liveness probe. A
+degraded report is HTTP 200 with `status: "degraded"`; 401/403 still mean the caller could not
+ask.
+
+Alternatives: a public endpoint returning build and migration state only (safe but cannot
+answer "are this client's creators running?"); HTTP 503 for degraded (a monitor could not
+tell it apart from a signing or session failure, and the dashboard's fetch helper treats
+non-2xx as an error).
+
+Why: acceptance criterion 12 asks for `/api/health` to be green on the deployment, and the
+agency's real question is whether each creator is syncing. Keeping it authenticated means no
+new unauthenticated surface.
+
+## D-035 - `purgeExpired` is housekeeping, not a retention policy
+
+The daily job does two things: mark runs still `running` after 30 minutes as failed
+(`ORPHANED`), and finish deletion requests that never completed. It does **not** delete old
+reports, scores or metrics. R7 asks to keep past reports, and the baseline is only meaningful
+with history.
+
+Alternatives: delete data older than 90 days (contradicts R7 and would silently degrade the
+median); leave orphaned runs until the next ingest (the affected creator's card shows
+"running" indefinitely, and a crash exactly at the wrong time could strand it for hours).
+
+Why: it closes the two failure modes §8 names ("never leave a run stuck in running", finish a
+purge) without inventing a retention rule the client did not ask for.

@@ -81,6 +81,9 @@ export class MockInstagramSource implements InstagramSource {
     return { token, expiresAt: new Date(Date.now() + TOKEN_TTL_MS) };
   }
 
+  /** Fixture tokens exist only in this database, so there is nothing at Meta to revoke. */
+  async revokeToken(): Promise<void> {}
+
   private fixtureFor(creator: InstagramCreator): FixtureCreator {
     this.maybeFail();
     const fixture = FIXTURE_CREATORS.find((f) => f.igUserId === creator.igUserId);

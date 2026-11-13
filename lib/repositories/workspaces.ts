@@ -110,5 +110,30 @@ export function workspacesRepo(tx: Tx) {
                 ${tx.json(entry.metadata ?? {})})
       `;
     },
+
+    /** System scope only: the audit trail must outlive the creator it describes. */
+    async beginDeletionRequest(workspaceId: string, creatorId: string, now: Date): Promise<string> {
+      const [row] = await tx<{ id: string }[]>`
+        insert into public.deletion_requests (workspace_id, creator_id, requested_at)
+        values (${workspaceId}, ${creatorId}, ${now})
+        returning id
+      `;
+      if (!row) throw new Error("deletion request was not stored");
+      return row.id;
+    },
+
+    async completeDeletionRequest(id: string, now: Date): Promise<void> {
+      await tx`update public.deletion_requests set completed_at = ${now} where id = ${id}`;
+    },
+
+    /** Daily safety net: requests whose purge did not finish (D-033). */
+    async pendingDeletionRequests(): Promise<{ id: string; workspaceId: string; creatorId: string }[]> {
+      const rows = await tx<{ id: string; workspace_id: string; creator_id: string }[]>`
+        select id, workspace_id, creator_id from public.deletion_requests
+        where completed_at is null
+        order by requested_at
+      `;
+      return rows.map((r) => ({ id: r.id, workspaceId: r.workspace_id, creatorId: r.creator_id }));
+    },
   };
 }

@@ -31,6 +31,15 @@ export interface TokenMaterial {
   expiresAt: Date | null;
 }
 
+/** Everything the hourly scheduler needs to decide whether a creator is due. */
+export interface SchedulableCreator {
+  id: string;
+  workspaceId: string;
+  status: CreatorStatus;
+  lastSyncedAt: Date | null;
+  scheduleInterval: string;
+}
+
 interface CreatorDbRow {
   id: string;
   workspace_id: string;
@@ -162,6 +171,42 @@ export function creatorsRepo(tx: Tx) {
 
     async markSynced(id: string, at: Date): Promise<void> {
       await tx`update public.creators set last_synced_at = ${at} where id = ${id}`;
+    },
+
+    /**
+     * System scope only. Used by the hourly scheduler; each row carries the workspace's
+     * chosen interval so the due check stays in the service (D-032).
+     */
+    async listSchedulable(): Promise<SchedulableCreator[]> {
+      const rows = await tx<{
+        id: string;
+        workspace_id: string;
+        status: CreatorStatus;
+        last_synced_at: Date | null;
+        schedule_cron: string;
+      }[]>`
+        select c.id, c.workspace_id, c.status, c.last_synced_at, s.schedule_cron
+        from public.creators c
+        join public.scoring_settings s on s.workspace_id = c.workspace_id
+        where c.status <> 'disconnected'
+        order by c.workspace_id, c.username
+      `;
+      return rows.map((r) => ({
+        id: r.id,
+        workspaceId: r.workspace_id,
+        status: r.status,
+        lastSyncedAt: r.last_synced_at,
+        scheduleInterval: r.schedule_cron,
+      }));
+    },
+
+    /**
+     * System scope only. Every creator-owned table cascades from this row; the purge
+     * service writes the deletion record in the same transaction (D-033).
+     */
+    async deletePermanently(id: string): Promise<boolean> {
+      const rows = await tx`delete from public.creators where id = ${id} returning id`;
+      return rows.length > 0;
     },
   };
 }

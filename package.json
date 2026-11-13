@@ -18,6 +18,7 @@
     "db:reset": "tsx scripts/migrate.ts --reset && tsx scripts/seed.ts && tsx scripts/ingest.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:secrets": "tsx scripts/check-client-secrets.ts",
     "ingest": "tsx scripts/ingest.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
@@ -35,6 +36,7 @@
     "@supabase/supabase-js": "^2.119.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "inngest": "^4.26.2",
     "lucide-react": "^1.72.0",
     "next": "^16.4.6",
     "react": "^19.3.1",

@@ -2,6 +2,7 @@ import { inScope, type Scope, type Tx } from "@/lib/db/client";
 import { aiCallsRepo } from "./aiCalls";
 import { authRepo } from "./auth";
 import { creatorsRepo } from "./creators";
+import { healthRepo } from "./health";
 import { insightsRepo } from "./insights";
 import { plansRepo } from "./plans";
 import { postsRepo } from "./posts";
@@ -14,6 +15,7 @@ function bind(tx: Tx) {
     aiCalls: aiCallsRepo(tx),
     auth: authRepo(tx),
     creators: creatorsRepo(tx),
+    health: healthRepo(tx),
     insights: insightsRepo(tx),
     plans: plansRepo(tx),
     posts: postsRepo(tx),
@@ -37,7 +39,7 @@ export function withRepos<T>(scope: Scope, fn: (repos: Repos) => Promise<T>): Pr
 }
 
 export type { AiCallRecord, AiPurpose } from "./aiCalls";
-export type { ConnectionWrite, Creator, CreatorStatus, TokenMaterial } from "./creators";
+export type { ConnectionWrite, Creator, CreatorStatus, SchedulableCreator, TokenMaterial } from "./creators";
 export type { CommentInsight, Report, ReportPoint, ThemeAggregate } from "./insights";
 export type { Plan, Suggestion, SuggestionStatus, SuggestionWrite } from "./plans";
 export type { PostCursor, PostListFilter, PostView } from "./posts";
