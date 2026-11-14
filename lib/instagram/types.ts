@@ -51,6 +51,17 @@ export interface ConnectedAccount {
   avatarUrl: string | null;
 }
 
+/**
+ * Unified Login hands back one token per business portfolio, covering every Instagram account
+ * shared from it, so a second account from the same portfolio arrives alongside the first.
+ */
+export interface AccountHint {
+  /** Accounts this workspace already has: skipped when choosing a new one. */
+  knownIgUserIds: string[];
+  /** Reconnecting: the account being reconnected. */
+  preferIgUserId?: string;
+}
+
 export interface InstagramSource {
   listRecentMedia(creator: InstagramCreator, since: Date): Promise<RawMedia[]>;
   /**
@@ -66,8 +77,11 @@ export interface InstagramSource {
    * both modes; `loginHint` lets the mock choose which fixture account "logs in".
    */
   authorizationUrl(state: string, loginHint?: string): string;
-  /** Returns the account profile as well as the token (§6 returned only the id; D-027). */
-  exchangeCode(code: string): Promise<ConnectedAccount>;
+  /**
+   * Returns the account profile as well as the token (§6 returned only the id; D-027).
+   * `hint` picks the account when one login covers several (Unified Login, D-041).
+   */
+  exchangeCode(code: string, hint?: AccountHint): Promise<ConnectedAccount>;
   refreshToken(token: string): Promise<{ token: string; expiresAt: Date }>;
   /** Disconnect: best-effort revoke of the app's permissions at Meta (§11, D-033). */
   revokeToken(token: string): Promise<void>;

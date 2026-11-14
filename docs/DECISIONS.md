@@ -440,3 +440,17 @@ every password); keep `pnpm workspace:create` only (needs a terminal for every n
 Also: the integration suite and seed now blank out live Supabase/Upstash/AI settings. On
 14 Nov a test run with live keys in `.env.local` created the two demo users in the live Supabase
 project; they had no membership and were deleted the same day.
+
+## D-041 - Unified Login returns every account in the portfolio; pick one per connection
+
+Found on 14 Nov 2026: after a second Instagram account was added to the same business portfolio,
+`/me/assigned_instagram_accounts` returned both (the token is per portfolio, not per account),
+and connecting failed because D-038 refused more than one. Now the callback passes a hint: the
+workspace's existing Instagram ids, or, on a reconnect, the account being reconnected. The
+adapter takes the reconnected account, or the single account not yet in the workspace; several
+new accounts at once are refused with "connect them one at a time". Failed connections now log
+the InstagramError code and its client-safe message.
+
+Alternatives: create a creator for every shared account in one go (surprising, and a creator
+login would end up linked to several accounts); make each creator use a separate portfolio
+(impractical for an agency's own test accounts).

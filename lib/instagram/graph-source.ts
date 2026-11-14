@@ -7,6 +7,7 @@ import {
 } from "./graph-client";
 import { insightMetricsFor, mapInsights, type GraphInsightEntry } from "./metrics";
 import {
+  type AccountHint,
   InstagramError,
   type ConnectedAccount,
   type InstagramCreator,
@@ -132,8 +133,8 @@ export class GraphInstagramSource implements InstagramSource {
     return url.toString();
   }
 
-  async exchangeCode(code: string): Promise<ConnectedAccount> {
-    if (this.loginType === "unified") return this.exchangeUnified(code);
+  async exchangeCode(code: string, hint?: AccountHint): Promise<ConnectedAccount> {
+    if (this.loginType === "unified") return this.exchangeUnified(code, hint);
     if (this.loginType === "facebook") {
       // 1. Authorization code -> short-lived user token.
       const shortLived = await this.client.get(
@@ -315,7 +316,7 @@ export class GraphInstagramSource implements InstagramSource {
    * client's business portfolio. No Page is involved; the shared Instagram accounts are listed
    * from the token itself.
    */
-  private async exchangeUnified(code: string): Promise<ConnectedAccount> {
+  private async exchangeUnified(code: string, hint?: AccountHint): Promise<ConnectedAccount> {
     const body = await this.client.get(
       "/oauth/access_token",
       { client_id: this.config.appId, client_secret: this.config.appSecret, redirect_uri: this.config.redirectUri, code },
@@ -335,15 +336,17 @@ export class GraphInstagramSource implements InstagramSource {
       token,
     );
     const usable = accounts.filter((a) => stringField(a, "id") !== null && stringField(a, "username") !== null);
-    // One connection is one creator. A token covering several accounts would make every
-    // creator share one token and one disconnect, so ask for one account per connection.
     if (usable.length === 0) {
       throw new InstagramError("No Instagram professional account was shared during login.", "PERMANENT", false);
     }
-    if (usable.length > 1) {
-      throw new InstagramError("Share exactly one Instagram account when connecting, then try again.", "PERMANENT", false);
+    const account = pickAccount(usable, hint);
+    if (account === null) {
+      throw new InstagramError(
+        "Several new Instagram accounts were shared at once. Connect them one at a time.",
+        "PERMANENT",
+        false,
+      );
     }
-    const account = usable[0]!;
     return {
       token,
       expiresAt,
@@ -482,6 +485,24 @@ function toRawMedia(item: Record<string, unknown>): RawMedia {
 
 function isInsightEntry(value: unknown): value is GraphInsightEntry {
   return record(value) !== null && typeof record(value)?.name === "string";
+}
+
+/**
+ * One account per connection (D-041). The token covers every account in the portfolio, so:
+ * a reconnect takes the account being reconnected; otherwise the one account not already in
+ * the workspace. Several new ones at once is ambiguous and is refused.
+ */
+function pickAccount(
+  accounts: Record<string, unknown>[],
+  hint: AccountHint | undefined,
+): Record<string, unknown> | null {
+  if (hint?.preferIgUserId !== undefined) {
+    return accounts.find((a) => stringField(a, "id") === hint.preferIgUserId) ?? null;
+  }
+  if (accounts.length === 1) return accounts[0] ?? null;
+  const known = new Set(hint?.knownIgUserIds ?? []);
+  const fresh = accounts.filter((a) => !known.has(stringField(a, "id") ?? ""));
+  return fresh.length === 1 ? (fresh[0] ?? null) : null;
 }
 
 /** Meta's Instagram Login docs show some responses wrapped as `{ data: [ {...} ] }`; accept both. */

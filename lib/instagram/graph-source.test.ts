@@ -445,3 +445,36 @@ describe("Unified Login", () => {
     await expect(source.exchangeCode("code")).rejects.toMatchObject({ code: "PERMANENT" });
   });
 });
+
+describe("Unified Login with several accounts in one portfolio (D-041)", () => {
+  const twoAccounts = () =>
+    new GraphInstagramSource({
+      ...CONFIG,
+      loginType: "unified",
+      loginConfigId: "cfg-9",
+      client: new GraphClient({
+        fetch: fakeFetch((url) =>
+          url.pathname.endsWith("/oauth/access_token")
+            ? json({ access_token: "suat" })
+            : json({ data: [{ id: "111", username: "already.here" }, { id: "222", username: "brand.new" }] }),
+        ),
+        sleep: async () => {},
+      }),
+    });
+
+  it("takes the account the workspace does not have yet", async () => {
+    const account = await twoAccounts().exchangeCode("code", { knownIgUserIds: ["111"] });
+    expect(account).toMatchObject({ igUserId: "222", username: "brand.new" });
+  });
+
+  it("takes the account being reconnected", async () => {
+    const account = await twoAccounts().exchangeCode("code", { knownIgUserIds: ["111", "222"], preferIgUserId: "111" });
+    expect(account).toMatchObject({ igUserId: "111", username: "already.here" });
+  });
+
+  it("refuses when every shared account is already connected", async () => {
+    await expect(twoAccounts().exchangeCode("code", { knownIgUserIds: ["111", "222"] })).rejects.toMatchObject({
+      code: "PERMANENT",
+    });
+  });
+});

@@ -7,8 +7,12 @@ import {
 } from "@/lib/fixtures/creators";
 import {
   InstagramError,
+  type AccountHint,
   type ConnectedAccount,
-  type InstagramCreator, type InstagramSource, type RawMedia } from "./types";
+  type InstagramCreator,
+  type InstagramSource,
+  type RawMedia,
+} from "./types";
 
 const TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -64,7 +68,7 @@ export class MockInstagramSource implements InstagramSource {
     return url.toString();
   }
 
-  async exchangeCode(code: string): Promise<ConnectedAccount> {
+  async exchangeCode(code: string, _hint?: AccountHint): Promise<ConnectedAccount> {
     const fixture = FIXTURE_CREATORS.find((f) => f.key === code);
     if (!fixture) throw new InstagramError("That demo account doesn't exist.", "PERMANENT", false);
     return {

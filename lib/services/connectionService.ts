@@ -6,7 +6,7 @@ import {
   type OAuthState,
 } from "@/lib/instagram/crypto";
 import { stateKey, tokenKey } from "@/lib/instagram/keys";
-import type { ConnectedAccount } from "@/lib/instagram/types";
+import type { AccountHint, ConnectedAccount } from "@/lib/instagram/types";
 import {
   asSystem,
   asUser,
@@ -64,6 +64,21 @@ export async function beginConnection(userId: string, creatorId: string | null):
     exp: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
   };
   return { nonce, signedState: signState(state, stateKey()) };
+}
+
+/**
+ * Which account to take when one login covers several (D-041): skip the workspace's existing
+ * accounts, or, on a reconnect, take the account being reconnected.
+ */
+export async function accountHintFor(workspaceId: string, existingCreatorId?: string): Promise<AccountHint> {
+  return withRepos(asSystem(), async (r) => {
+    const creators = await r.creators.listForWorkspace(workspaceId);
+    const existing = existingCreatorId !== undefined ? creators.find((c) => c.id === existingCreatorId) : undefined;
+    return {
+      knownIgUserIds: creators.map((c) => c.igUserId),
+      ...(existing !== undefined ? { preferIgUserId: existing.igUserId } : {}),
+    };
+  });
 }
 
 export interface CompletedConnection {

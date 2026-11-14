@@ -9,8 +9,9 @@ import {
   verifyState,
 } from "@/lib/instagram/crypto";
 import { createInstagramSource } from "@/lib/instagram/factory";
+import { InstagramError } from "@/lib/instagram/types";
 import { stateKey } from "@/lib/instagram/keys";
-import { completeConnection } from "@/lib/services/connectionService";
+import { accountHintFor, completeConnection } from "@/lib/services/connectionService";
 
 /**
  * GET /api/creators/callback?code=…&state=…
@@ -46,7 +47,8 @@ export const GET = handle(async (req: Request) => {
   }
 
   try {
-    const account = await createInstagramSource().exchangeCode(code);
+    const hint = await accountHintFor(state.workspaceId, state.creatorId);
+    const account = await createInstagramSource().exchangeCode(code, hint);
     const { creatorId } = await completeConnection(
       state.userId,
       state.workspaceId,
@@ -56,7 +58,9 @@ export const GET = handle(async (req: Request) => {
     return finish(`/accounts/${creatorId}?connected=1`);
   } catch (err) {
     // Class of failure only: messages can carry API detail, never a token.
-    console.error(`[oauth] connection failed: ${err instanceof Error ? err.name : "unknown"}`);
+    // InstagramError messages are written to be shown to clients and never carry a token.
+    const detail = err instanceof InstagramError ? `${err.code}: ${err.message}` : err instanceof Error ? err.name : "unknown";
+    console.error(`[oauth] connection failed: ${detail}`);
     const reason =
       err instanceof AppError && err.code === "CONFLICT"
         ? "mismatch"
