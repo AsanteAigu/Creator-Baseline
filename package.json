@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "check:secrets": "tsx scripts/check-client-secrets.ts",
     "ingest": "tsx scripts/ingest.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "workspace:create": "tsx scripts/create-workspace.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

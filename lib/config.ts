@@ -29,6 +29,11 @@ const serverEnvSchema = z
     ANTHROPIC_API_KEY: optionalString,
 
     INSTAGRAM_SOURCE: z.enum(["graph", "mock"]).default("mock"),
+    /**
+     * "unified": Unified Login, the only option for Meta apps created from late 2026 (D-038);
+     * "instagram": Instagram Login on older apps; "facebook": Facebook Login via a Page.
+     */
+    INSTAGRAM_LOGIN_TYPE: z.enum(["unified", "instagram", "facebook"]).default("unified"),
     INSTAGRAM_APP_ID: optionalString,
     INSTAGRAM_APP_SECRET: optionalString,
     INSTAGRAM_REDIRECT_URI: optionalUrl,
@@ -63,6 +68,9 @@ const serverEnvSchema = z
       need("INSTAGRAM_APP_SECRET", "when INSTAGRAM_SOURCE=graph");
       need("INSTAGRAM_REDIRECT_URI", "when INSTAGRAM_SOURCE=graph");
       need("TOKEN_ENCRYPTION_KEY", "when INSTAGRAM_SOURCE=graph");
+      if (env.INSTAGRAM_LOGIN_TYPE === "unified") {
+        need("INSTAGRAM_LOGIN_CONFIG_ID", "when INSTAGRAM_LOGIN_TYPE=unified");
+      }
     }
 
     // Validate shape whenever present, so a bad key fails at boot rather than at first encrypt.

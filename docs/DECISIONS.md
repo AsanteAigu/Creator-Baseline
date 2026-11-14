@@ -330,3 +330,57 @@ median); leave orphaned runs until the next ingest (the affected creator's card 
 
 Why: it closes the two failure modes §8 names ("never leave a run stuck in running", finish a
 purge) without inventing a retention rule the client did not ask for.
+
+## D-036 - Real workspaces and members are created by a script, not a sign-up page
+
+The spec has members "invited by an admin" but no flow existed outside the demo seed, so a real
+deployment had no way to create its first owner. `pnpm workspace:create --name ... --owner ...`
+(also `--admin`, `--viewer`) creates or reuses the workspace, its default scoring settings and the
+memberships, and creates missing users in Supabase Auth with a password typed at a hidden prompt.
+
+Alternatives: Supabase invite emails (the app has no page to accept an invite or set a password,
+and Supabase's built-in mailer is rate-limited and restricted to project members), or an in-app
+admin screen (more surface to secure and test than one agency needs in v1). Why: one re-runnable
+command covers the first owner and later teammates, and keeps passwords out of shell history.
+
+## D-037 - Instagram Login (no Facebook Page) is the default; its token rules differ
+
+`INSTAGRAM_LOGIN_TYPE=instagram` (default) uses Instagram API with Instagram Login, so creators
+connect without a linked Facebook Page; `facebook` keeps the Facebook Login path. Checked against
+Meta's Instagram Platform docs on 14 Nov 2026:
+
+- **Revocation:** no revoke endpoint is documented (the token reference says deleting "is not
+  supported"). On disconnect the purge deletes our only copy of the token; Meta expires it within
+  60 days, or the creator removes the app in Instagram settings. `revokeToken` is a no-op for
+  this login type only.
+- **Token in URL:** the long-lived exchange and the refresh are documented only as GETs with the
+  token (and, for the exchange, the app secret) in the query string. These two server-to-server
+  calls are the only exception to "tokens never in a URL"; the URL is never logged or returned.
+- **Account id:** `/me` `user_id` is the professional account id the media endpoints take; `id`
+  and the code exchange's `user_id` are app-scoped and are not used. No `user_id` means the
+  connection fails rather than storing an id every later call would reject.
+- Responses are accepted flat or wrapped in `data[0]`, because the docs show both.
+
+Alternatives: keep Facebook Login only (every creator would need a Facebook Page linked);
+send tokens in a header (not documented for these endpoints, so it could break silently).
+
+## D-038 - Unified Login is the default, because new Meta apps cannot use Instagram Login
+
+The client's Meta app (created Nov 2026) shows "API setup with Instagram login is not available for
+newer apps". `INSTAGRAM_LOGIN_TYPE=unified` uses Instagram API with Unified Login: the Facebook
+dialog with a configuration id (`INSTAGRAM_LOGIN_CONFIG_ID`), the Meta app id and secret, a
+business-integration system-user token, and `GET /me/assigned_instagram_accounts` on
+graph.facebook.com. No Facebook Page is needed; the client needs a business portfolio.
+Permissions: `instagram_basic`, `instagram_manage_insights`, `instagram_manage_comments`.
+
+- The configuration is set to never expire, so `token_expires_at` is null and no refresh runs. If
+  Meta does issue an expiring token, refresh fails as AUTH and the client reconnects; the
+  token-management API would need `business_management`, which v1 does not request.
+- One connection must share exactly one Instagram account, so each creator keeps its own token
+  and disconnect. Several accounts in one login are refused with a clear message.
+- No revoke endpoint is documented; the client removes the app under Business Settings >
+  Integrations > Connected apps. The purge still deletes our copy (as D-037).
+- Meta requires an HTTPS redirect URL, so local testing needs a tunnel or the deployed URL.
+
+Alternatives: Facebook Login via `/me/accounts` (needs a Page per creator); Instagram Login (not
+offered to this app).

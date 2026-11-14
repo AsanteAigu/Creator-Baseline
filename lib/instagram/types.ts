@@ -43,7 +43,8 @@ export interface RawComment {
 /** What a completed login gives us. The token is the long-lived one, ready to encrypt. */
 export interface ConnectedAccount {
   token: string;
-  expiresAt: Date;
+  /** Null when the token does not expire (Unified Login system-user token, D-038). */
+  expiresAt: Date | null;
   igUserId: string;
   username: string;
   displayName: string | null;

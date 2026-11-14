@@ -20,6 +20,7 @@ export function createInstagramSource(): InstagramSource {
       appId: env.INSTAGRAM_APP_ID,
       appSecret: env.INSTAGRAM_APP_SECRET,
       redirectUri: env.INSTAGRAM_REDIRECT_URI,
+      loginType: env.INSTAGRAM_LOGIN_TYPE,
       loginConfigId: env.INSTAGRAM_LOGIN_CONFIG_ID,
     });
   }

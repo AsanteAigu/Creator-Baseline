@@ -22,7 +22,7 @@ export interface ConnectionWrite {
   avatarUrl: string | null;
   ciphertext: string;
   iv: string;
-  expiresAt: Date;
+  expiresAt: Date | null;
 }
 
 export interface TokenMaterial {

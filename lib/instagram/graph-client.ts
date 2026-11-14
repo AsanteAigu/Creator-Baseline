@@ -9,6 +9,14 @@ import { InstagramError } from "./types";
 
 export const GRAPH_API_VERSION = "v27.0";
 export const GRAPH_HOST = "https://graph.facebook.com";
+export const INSTAGRAM_GRAPH_HOST = "https://graph.instagram.com";
+export const INSTAGRAM_API_HOST = "https://api.instagram.com";
+
+const ALLOWED_HOSTS = new Set([
+  GRAPH_HOST,
+  INSTAGRAM_GRAPH_HOST,
+  INSTAGRAM_API_HOST,
+]);
 
 /** Meta throttling codes: app (4), user (17), page (32), custom (613), Instagram BUC (80002). */
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613, 80002]);
@@ -18,6 +26,7 @@ const AUTH_CODES = new Set([102, 190, 10]);
 const TRANSIENT_CODES = new Set([1, 2]);
 
 export interface GraphClientOptions {
+  host?: string;
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   timeoutMs?: number;
@@ -34,6 +43,7 @@ interface GraphErrorBody {
 const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export class GraphClient {
+  private readonly host: string;
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly timeoutMs: number;
@@ -45,6 +55,7 @@ export class GraphClient {
   private lastCallAt = 0;
 
   constructor(opts: GraphClientOptions = {}) {
+    this.host = opts.host ?? GRAPH_HOST;
     this.fetchImpl = opts.fetch ?? fetch;
     this.sleep = opts.sleep ?? realSleep;
     this.timeoutMs = opts.timeoutMs ?? 15_000;
@@ -58,14 +69,29 @@ export class GraphClient {
     return this.request(this.buildUrl(path, params), this.headers(token), "GET");
   }
 
+  /** Form-encoded POST, used for Instagram short-lived token exchange. */
+  async postForm(path: string, form: Record<string, string>): Promise<unknown> {
+    const url = this.buildUrl(path, {});
+    const body = new URLSearchParams(form).toString();
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+    return this.request(url, headers, "POST", body);
+  }
+
   /** Used only to revoke a token at Meta when an account is disconnected (D-033). */
   async delete(path: string, params: Record<string, string>, token: string): Promise<unknown> {
     return this.request(this.buildUrl(path, params), this.headers(token), "DELETE");
   }
 
   private buildUrl(path: string, params: Record<string, string>): URL {
-    const url = path.startsWith("https://") ? new URL(path) : new URL(`${GRAPH_HOST}/${GRAPH_API_VERSION}${path}`);
-    if (url.origin !== GRAPH_HOST) throw new InstagramError("Instagram returned an unexpected link.", "PERMANENT", false);
+    const url = path.startsWith("https://")
+      ? new URL(path)
+      : new URL(`${this.host}/${GRAPH_API_VERSION}${path.startsWith("/") ? path : `/${path}`}`);
+    if (!ALLOWED_HOSTS.has(url.origin)) {
+      throw new InstagramError("Instagram returned an unexpected link.", "PERMANENT", false);
+    }
     // Paging links can echo a token back; ours goes in the header only.
     url.searchParams.delete("access_token");
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -78,7 +104,12 @@ export class GraphClient {
     return headers;
   }
 
-  private async request(url: URL, headers: Record<string, string>, method: "GET" | "DELETE"): Promise<unknown> {
+  private async request(
+    url: URL,
+    headers: Record<string, string>,
+    method: "GET" | "POST" | "DELETE",
+    body?: string,
+  ): Promise<unknown> {
     let lastError: InstagramError | null = null;
     for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
       if (attempt > 0) {
@@ -87,7 +118,7 @@ export class GraphClient {
       }
       await this.pace();
       try {
-        return await this.once(url, headers, method);
+        return await this.once(url, headers, method, body);
       } catch (err) {
         if (!(err instanceof InstagramError) || !err.retryable) throw err;
         lastError = err;
@@ -107,19 +138,30 @@ export class GraphClient {
     this.lastCallAt = Date.now();
   }
 
-  private async once(url: URL, headers: Record<string, string>, method: "GET" | "DELETE"): Promise<unknown> {
+  private async once(
+    url: URL,
+    headers: Record<string, string>,
+    method: "GET" | "POST" | "DELETE",
+    body?: string,
+  ): Promise<unknown> {
     let res: Response;
     try {
-      res = await this.fetchImpl(url, { method, headers, signal: AbortSignal.timeout(this.timeoutMs), cache: "no-store" });
+      res = await this.fetchImpl(url, {
+        method,
+        headers,
+        body,
+        signal: AbortSignal.timeout(this.timeoutMs),
+        cache: "no-store",
+      });
     } catch {
       throw new InstagramError("Instagram did not respond in time.", "UNAVAILABLE", true);
     }
     this.readUsage(res.headers);
 
-    const body: unknown = await res.json().catch(() => null);
-    if (res.ok) return body;
+    const resBody: unknown = await res.json().catch(() => null);
+    if (res.ok) return resBody;
 
-    const error = (body as GraphErrorBody | null)?.error;
+    const error = (resBody as GraphErrorBody | null)?.error;
     const code = typeof error?.code === "number" ? error.code : null;
     if (res.status === 429 || (code !== null && RATE_LIMIT_CODES.has(code))) {
       throw new InstagramError("Instagram is limiting requests right now.", "RATE_LIMITED", true);

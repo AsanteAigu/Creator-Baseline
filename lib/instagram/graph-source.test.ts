@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { GraphClient } from "./graph-client";
-import { GraphInstagramSource, OAUTH_SCOPES } from "./graph-source";
+import {
+  GraphInstagramSource,
+  INSTAGRAM_OAUTH_SCOPES,
+  OAUTH_SCOPES,
+} from "./graph-source";
 import type { InstagramCreator, RawMedia } from "./types";
 
 type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response>;
@@ -26,9 +30,14 @@ const CONFIG = {
   redirectUri: "https://app.example/api/creators/callback",
 };
 
-function sourceWith(handler: Handler, loginConfigId?: string): GraphInstagramSource {
-  const client = new GraphClient({ fetch: fakeFetch(handler), sleep: async () => {} });
-  return new GraphInstagramSource({ ...CONFIG, loginConfigId, client });
+function sourceWith(
+  handler: Handler,
+  loginConfigId?: string,
+  loginType: "instagram" | "facebook" = "facebook",
+): GraphInstagramSource {
+  const host = loginType === "instagram" ? "https://graph.instagram.com" : "https://graph.facebook.com";
+  const client = new GraphClient({ host, fetch: fakeFetch(handler), sleep: async () => {} });
+  return new GraphInstagramSource({ ...CONFIG, loginConfigId, loginType, client });
 }
 
 const creator: InstagramCreator = {
@@ -69,6 +78,83 @@ describe("authorizationUrl", () => {
     expect(url.searchParams.get("config_id")).toBe("cfg-9");
     expect(url.searchParams.get("override_default_response_type")).toBe("true");
     expect(url.searchParams.get("scope")).toBeNull();
+  });
+
+  it("builds a direct Instagram Login URL without Facebook when loginType is instagram", () => {
+    const source = sourceWith(() => json({}), undefined, "instagram");
+    const url = new URL(source.authorizationUrl("nonce-ig"));
+    expect(url.origin).toBe("https://www.instagram.com");
+    expect(url.pathname).toBe("/oauth/authorize");
+    expect(url.searchParams.get("client_id")).toBe("app-1");
+    expect(url.searchParams.get("redirect_uri")).toBe(CONFIG.redirectUri);
+    expect(url.searchParams.get("state")).toBe("nonce-ig");
+    expect(url.searchParams.get("enable_fb_login")).toBe("0");
+    expect(url.searchParams.get("scope")).toBe(INSTAGRAM_OAUTH_SCOPES.join(","));
+  });
+});
+
+describe("exchangeCode (Direct Instagram Login)", () => {
+  it("exchanges code and reads profile directly from /me without Facebook Page", async () => {
+    const seen: URL[] = [];
+    const source = sourceWith((url, init) => {
+      seen.push(url);
+      if (url.origin === "https://api.instagram.com" && url.pathname.endsWith("/oauth/access_token")) {
+        expect(init?.method).toBe("POST");
+        // Shape from Meta's docs: wrapped in data[], with an app-scoped user_id we must ignore.
+        return json({ data: [{ access_token: "short-ig-tok", user_id: "1020", permissions: "x" }] });
+      }
+      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/access_token")) {
+        expect(url.searchParams.get("grant_type")).toBe("ig_exchange_token");
+        expect(url.searchParams.get("access_token")).toBe("short-ig-tok");
+        return json({ access_token: "long-ig-tok", expires_in: 5_184_000 });
+      }
+      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/me")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer long-ig-tok");
+        return json({
+          id: "app-scoped-1020",
+          user_id: "17841400000000999",
+          username: "direct_creator",
+          name: "Direct Creator",
+          profile_picture_url: "https://cdn.example/pfp.jpg",
+        });
+      }
+      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/refresh_access_token")) {
+        return json({ access_token: "refreshed-ig-tok", expires_in: 5_184_000 });
+      }
+      return json({}, 404);
+    }, undefined, "instagram");
+
+    const account = await source.exchangeCode("code-ig");
+    expect(account).toMatchObject({
+      token: "long-ig-tok",
+      igUserId: "17841400000000999",
+      username: "direct_creator",
+      displayName: "Direct Creator",
+      avatarUrl: "https://cdn.example/pfp.jpg",
+    });
+
+    const refreshed = await source.refreshToken("long-ig-tok");
+    expect(refreshed.token).toBe("refreshed-ig-tok");
+  });
+
+  it("refuses an account when /me has no professional account id, rather than using the app-scoped id", async () => {
+    const source = sourceWith((url) => {
+      if (url.origin === "https://api.instagram.com") return json({ access_token: "short", user_id: "1020" });
+      if (url.pathname.endsWith("/access_token")) return json({ access_token: "long", expires_in: 100 });
+      if (url.pathname.endsWith("/me")) return json({ id: "app-scoped-1020", username: "direct_creator" });
+      return json({}, 404);
+    }, undefined, "instagram");
+    await expect(source.exchangeCode("code")).rejects.toMatchObject({ code: "PERMANENT" });
+  });
+
+  it("does not call a revoke endpoint, because Instagram Login has none", async () => {
+    const seen: URL[] = [];
+    const source = sourceWith((url) => {
+      seen.push(url);
+      return json({ success: true });
+    }, undefined, "instagram");
+    await source.revokeToken("long-ig-tok");
+    expect(seen).toHaveLength(0);
   });
 });
 
@@ -114,7 +200,7 @@ describe("exchangeCode", () => {
       displayName: "Maya Okafor",
       avatarUrl: "https://cdn.example/avatar.jpg",
     });
-    expect(account.expiresAt.getTime()).toBeGreaterThan(Date.now() + 59 * 24 * 60 * 60 * 1000);
+    expect(account.expiresAt?.getTime()).toBeGreaterThan(Date.now() + 59 * 24 * 60 * 60 * 1000);
 
     const codeCall = seen.find((u) => u.searchParams.get("code") === "code-123");
     expect(codeCall?.searchParams.get("client_secret")).toBe("secret-1");
@@ -306,5 +392,56 @@ describe("listComments", () => {
     });
     expect(await source.listComments(creator, "m1", 0)).toEqual([]);
     expect(called).toBe(false);
+  });
+});
+
+describe("Unified Login", () => {
+  it("sends the client to the Facebook dialog with the configuration id", () => {
+    const client = new GraphClient({ fetch: fakeFetch(() => json({})), sleep: async () => {} });
+    const source = new GraphInstagramSource({ ...CONFIG, loginType: "unified", loginConfigId: "cfg-9", client });
+    const url = new URL(source.authorizationUrl("nonce-u"));
+    expect(url.origin).toBe("https://www.facebook.com");
+    expect(url.searchParams.get("config_id")).toBe("cfg-9");
+    expect(url.searchParams.get("state")).toBe("nonce-u");
+    expect(url.searchParams.get("scope")).toBeNull();
+  });
+
+  it("exchanges the code and takes the one shared Instagram account, with a non-expiring token", async () => {
+    const source = new GraphInstagramSource({
+      ...CONFIG,
+      loginType: "unified",
+      loginConfigId: "cfg-9",
+      client: new GraphClient({
+        fetch: fakeFetch((url, init) => {
+          expect(url.origin).toBe("https://graph.facebook.com");
+          if (url.pathname.endsWith("/oauth/access_token")) return json({ access_token: "suat" });
+          if (url.pathname.endsWith("/me/assigned_instagram_accounts")) {
+            expect(new Headers(init?.headers).get("authorization")).toBe("Bearer suat");
+            return json({ data: [{ id: "17841400000000777", username: "unified_creator", name: "U" }] });
+          }
+          return json({}, 404);
+        }),
+        sleep: async () => {},
+      }),
+    });
+    const account = await source.exchangeCode("code-u");
+    expect(account).toMatchObject({ token: "suat", igUserId: "17841400000000777", username: "unified_creator", expiresAt: null });
+  });
+
+  it("refuses a login that shared several accounts", async () => {
+    const source = new GraphInstagramSource({
+      ...CONFIG,
+      loginType: "unified",
+      loginConfigId: "cfg-9",
+      client: new GraphClient({
+        fetch: fakeFetch((url) =>
+          url.pathname.endsWith("/oauth/access_token")
+            ? json({ access_token: "suat" })
+            : json({ data: [{ id: "1", username: "a" }, { id: "2", username: "b" }] }),
+        ),
+        sleep: async () => {},
+      }),
+    });
+    await expect(source.exchangeCode("code")).rejects.toMatchObject({ code: "PERMANENT" });
   });
 });
