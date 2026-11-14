@@ -23,6 +23,18 @@ function canManage(role: Role): boolean {
   return role === "owner" || role === "admin";
 }
 
+/**
+ * Staff connect any account. A creator login (D-011) may connect once, to bring in their own
+ * Instagram, and afterwards only reconnect that same account.
+ */
+function canConnect(m: { role: Role; creatorId: string | null }, creatorId: string | null): boolean {
+  if (canManage(m.role)) return true;
+  if (m.role !== "creator") return false;
+  return creatorId === null ? m.creatorId === null : creatorId === m.creatorId;
+}
+
+const CANNOT_CONNECT = "Only owners and admins can connect accounts.";
+
 export interface StartedConnection {
   /** Echoed back by Meta as `state`. */
   nonce: string;
@@ -36,7 +48,7 @@ export interface StartedConnection {
  */
 export async function beginConnection(userId: string, creatorId: string | null): Promise<StartedConnection> {
   const context = await getWorkspaceContext(userId);
-  if (!canManage(context.role)) throw forbidden("Only owners and admins can connect accounts.");
+  if (!canConnect(context, creatorId)) throw forbidden(CANNOT_CONNECT);
   if (creatorId !== null) {
     // RLS: a creator from another workspace is indistinguishable from a missing one.
     const creator = await withRepos(asUser(userId), (r) => r.creators.get(creatorId));
@@ -68,7 +80,7 @@ export async function completeConnection(
   account: ConnectedAccount,
   existingCreatorId?: string,
 ): Promise<CompletedConnection> {
-  await requireManager(actorUserId, workspaceId);
+  const membership = await requireConnector(actorUserId, workspaceId, existingCreatorId ?? null);
 
   const key = tokenKey();
   if (key === null) throw new Error("TOKEN_ENCRYPTION_KEY is required to connect accounts");
@@ -102,6 +114,9 @@ export async function completeConnection(
   const creatorId = await withRepos(asSystem(), (r) =>
     r.creators.upsertConnected(workspaceId, account.igUserId, write),
   );
+  if (membership.role === "creator") {
+    await withRepos(asSystem(), (r) => r.workspaces.linkCreator(workspaceId, actorUserId, creatorId));
+  }
   await audit(workspaceId, actorUserId, "creator.connected", creatorId);
   return { creatorId };
 }
@@ -110,11 +125,16 @@ export async function completeConnection(
  * The callback runs after a top-level redirect, so the session cookie may have expired
  * mid-flow. The signed state proves who started it; membership is re-checked here.
  */
-async function requireManager(userId: string, workspaceId: string): Promise<void> {
+async function requireConnector(
+  userId: string,
+  workspaceId: string,
+  creatorId: string | null,
+): Promise<{ role: Role; creatorId: string | null }> {
   const memberships = await withRepos(asSystem(), (r) => r.workspaces.membershipsForUser(userId));
   const membership = memberships.find((m) => m.workspaceId === workspaceId);
   if (!membership) throw forbidden("You no longer have access to this agency.");
-  if (!canManage(membership.role)) throw forbidden("Only owners and admins can connect accounts.");
+  if (!canConnect(membership, creatorId)) throw forbidden(CANNOT_CONNECT);
+  return membership;
 }
 
 async function audit(

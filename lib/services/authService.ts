@@ -11,6 +11,11 @@ export async function verifyLocalCredentials(
   return withRepos(asSystem(), (r) => r.auth.verifyLocalPassword(email, password));
 }
 
+/** Local-development sign-up for invite links (D-040). Null when the email is taken. */
+export async function createLocalAccount(email: string, password: string): Promise<{ id: string } | null> {
+  return withRepos(asSystem(), (r) => r.auth.createLocalUser(email, password));
+}
+
 export async function localUserEmail(userId: string): Promise<string | null> {
   return withRepos(asSystem(), (r) => r.auth.emailFor(userId));
 }

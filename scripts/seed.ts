@@ -34,6 +34,11 @@ async function ensureDemoUsers(sql: postgres.Sql, password: string): Promise<Map
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (url && serviceKey) {
+    // Supabase Auth users must belong to the same project as the database being seeded:
+    // a local database with live Supabase keys would put demo logins in the live project.
+    if (!/supabase\.(co|com)/.test(process.env.DATABASE_URL ?? "")) {
+      throw new Error("Refusing to seed: Supabase Auth is configured but DATABASE_URL is not a Supabase database.");
+    }
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
     const { data: existing, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
     if (listError) throw listError;

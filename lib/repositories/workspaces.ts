@@ -1,12 +1,22 @@
 import type { Tx } from "@/lib/db/client";
 import type { Weights } from "@/lib/scoring";
 
-export type Role = "owner" | "admin" | "viewer";
+export type Role = "owner" | "admin" | "viewer" | "creator";
 
 export interface Membership {
   workspaceId: string;
   workspaceName: string;
   role: Role;
+  /** Set only for the creator role: the one account this login may see (D-011). */
+  creatorId: string | null;
+}
+
+export interface MemberView {
+  userId: string;
+  email: string | null;
+  role: Role;
+  creatorUsername: string | null;
+  joinedAt: Date;
 }
 
 export interface ScoringSettingsRow {
@@ -58,14 +68,72 @@ function toSettings(r: SettingsDbRow): ScoringSettingsRow {
 export function workspacesRepo(tx: Tx) {
   return {
     async membershipsForUser(userId: string): Promise<Membership[]> {
-      const rows = await tx<{ workspace_id: string; name: string; role: Role }[]>`
-        select m.workspace_id, w.name, m.role
+      const rows = await tx<{ workspace_id: string; name: string; role: Role; creator_id: string | null }[]>`
+        select m.workspace_id, w.name, m.role, m.creator_id
         from public.workspace_members m
         join public.workspaces w on w.id = m.workspace_id
         where m.user_id = ${userId}
         order by m.created_at
       `;
-      return rows.map((r) => ({ workspaceId: r.workspace_id, workspaceName: r.name, role: r.role }));
+      return rows.map((r) => ({
+        workspaceId: r.workspace_id,
+        workspaceName: r.name,
+        role: r.role,
+        creatorId: r.creator_id,
+      }));
+    },
+
+    /** System scope: reads auth.users emails, which RLS does not expose. Caller checks the role. */
+    async listMembers(workspaceId: string): Promise<MemberView[]> {
+      const rows = await tx<
+        { user_id: string; email: string | null; role: Role; username: string | null; created_at: Date }[]
+      >`
+        select m.user_id, u.email, m.role, c.username, m.created_at
+        from public.workspace_members m
+        left join auth.users u on u.id = m.user_id
+        left join public.creators c on c.id = m.creator_id
+        where m.workspace_id = ${workspaceId}
+        order by m.created_at
+      `;
+      return rows.map((r) => ({
+        userId: r.user_id,
+        email: r.email,
+        role: r.role,
+        creatorUsername: r.username,
+        joinedAt: r.created_at,
+      }));
+    },
+
+    /** Joining twice keeps the existing membership: an invite never changes someone's role. */
+    async addMember(workspaceId: string, userId: string, role: Role): Promise<void> {
+      await tx`
+        insert into public.workspace_members (workspace_id, user_id, role)
+        values (${workspaceId}, ${userId}, ${role})
+        on conflict (workspace_id, user_id) do nothing
+      `;
+    },
+
+    async removeMember(workspaceId: string, userId: string): Promise<boolean> {
+      const rows = await tx`
+        delete from public.workspace_members where workspace_id = ${workspaceId} and user_id = ${userId}
+      `;
+      return rows.count > 0;
+    },
+
+    async countOwners(workspaceId: string): Promise<number> {
+      const [row] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.workspace_members
+        where workspace_id = ${workspaceId} and role = 'owner'
+      `;
+      return row?.n ?? 0;
+    },
+
+    /** Ties a creator login to the account it just connected. */
+    async linkCreator(workspaceId: string, userId: string, creatorId: string): Promise<void> {
+      await tx`
+        update public.workspace_members set creator_id = ${creatorId}
+        where workspace_id = ${workspaceId} and user_id = ${userId} and role = 'creator'
+      `;
     },
 
     async getSettings(workspaceId: string): Promise<ScoringSettingsRow | null> {

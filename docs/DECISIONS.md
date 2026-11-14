@@ -409,3 +409,34 @@ not used for training.
 
 Alternatives: stay on mock (real creators would see sample text presented as analysis); wait for
 an Anthropic key (no budget).
+
+## D-040 - Creator logins see only their own account; people join by invite link
+
+Resolves D-011: the client confirmed on 14 Nov 2026 that a creator must see only their own
+results. This changes the data model, at the client's request.
+
+- **Creator role.** `workspace_members.role` gains `creator`, with a nullable `creator_id`.
+  `can_access_creator()`, which every creator-scoped policy already called, now lets a creator
+  member through only for their own creator; `creators_select` uses it too, and a creator sees
+  only their own membership row. Staff (owner/admin/viewer) see every creator as before.
+  `/api/health` (lists every creator) refuses creators.
+- **Connecting.** A creator login may start Connect once, while unlinked, and the account it
+  connects is linked to it; after that it may only reconnect that account.
+- **Invites.** Owners and admins create a link in Settings (email + role: admin, viewer or
+  creator). The token is 32 random bytes, stored only as a SHA-256 hash, single use, 7 days.
+  The invitee sets their own password on `/invite/<token>`; the account is created through
+  Supabase's public sign-up (anon key), so the service-role key stays out of request paths.
+  Membership and invite rows are written in system scope after the service's role checks,
+  because auth.users emails are not visible through RLS. Removing a member keeps their data;
+  the last owner cannot be removed.
+- **Supabase setting required:** Authentication > Email > "Confirm email" off. With it on,
+  sign-up returns no session and the invite page says so. Trade-off: anyone can create an
+  empty Supabase account with the public key; it has no membership, so RLS shows it nothing.
+
+Alternatives: Supabase invite emails (need custom SMTP; the built-in mailer only reaches the
+project team, and the app had no page to accept them); admin-set passwords (the admin would know
+every password); keep `pnpm workspace:create` only (needs a terminal for every new person).
+
+Also: the integration suite and seed now blank out live Supabase/Upstash/AI settings. On
+14 Nov a test run with live keys in `.env.local` created the two demo users in the live Supabase
+project; they had no membership and were deleted the same day.

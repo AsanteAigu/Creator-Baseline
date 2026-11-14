@@ -4,6 +4,7 @@ import { authRepo } from "./auth";
 import { creatorsRepo } from "./creators";
 import { healthRepo } from "./health";
 import { insightsRepo } from "./insights";
+import { invitesRepo } from "./invites";
 import { plansRepo } from "./plans";
 import { postsRepo } from "./posts";
 import { runsRepo } from "./runs";
@@ -17,6 +18,7 @@ function bind(tx: Tx) {
     creators: creatorsRepo(tx),
     health: healthRepo(tx),
     insights: insightsRepo(tx),
+    invites: invitesRepo(tx),
     plans: plansRepo(tx),
     posts: postsRepo(tx),
     runs: runsRepo(tx),
@@ -45,4 +47,5 @@ export type { Plan, Suggestion, SuggestionStatus, SuggestionWrite } from "./plan
 export type { PostCursor, PostListFilter, PostView } from "./posts";
 export type { Run, RunStatus, RunTrigger } from "./runs";
 export type { BaselineView, ScoreWrite, TrendPoint, WeightsSnapshot } from "./scores";
-export type { Membership, Role, ScoringSettingsPatch, ScoringSettingsRow } from "./workspaces";
+export type { Invite, InviteRole } from "./invites";
+export type { MemberView, Membership, Role, ScoringSettingsPatch, ScoringSettingsRow } from "./workspaces";

@@ -17,7 +17,7 @@ export default async function LoginPage() {
       <Card>
         <CardHeader>
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>Accounts are created by your agency admin. There is no self sign-up.</CardDescription>
+          <CardDescription>New here? Open the invite link your agency sent you.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm />

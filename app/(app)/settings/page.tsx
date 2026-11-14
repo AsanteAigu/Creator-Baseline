@@ -1,7 +1,9 @@
 import { Banner } from "@/components/banner";
+import { PeoplePanel } from "@/components/people-panel";
 import { SettingsForm, type SettingsValues } from "@/components/settings-form";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { formatDateTime } from "@/lib/format";
+import { listPeople } from "@/lib/services/memberService";
 import { getSettings } from "@/lib/services/settingsService";
 
 export const metadata = { title: "Settings" };
@@ -11,6 +13,8 @@ export default async function SettingsPage() {
   const result = await withPageErrors(() => getSettings(userId));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
   const { settings: s, canEdit } = result;
+  // Owners and admins manage people; listPeople re-checks the role itself.
+  const people = canEdit ? await withPageErrors(() => listPeople(userId)) : null;
 
   const initial: SettingsValues = {
     weights: {
@@ -45,6 +49,24 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsForm initial={initial} canEdit={canEdit} />
+      {people !== null && "message" in people ? <Banner tone="warn" title={people.message} /> : null}
+      {people !== null && !("message" in people) ? (
+        <PeoplePanel
+          people={people.members.map((m) => ({
+            userId: m.userId,
+            email: m.email,
+            role: m.role,
+            creatorUsername: m.creatorUsername,
+            isYou: m.userId === userId,
+          }))}
+          invites={people.invites.map((i) => ({
+            id: i.id,
+            email: i.email,
+            role: i.role,
+            expiresLabel: formatDateTime(i.expiresAt),
+          }))}
+        />
+      ) : null}
     </>
   );
 }

@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { serverEnv } from "@/lib/config";
-import { localUserEmail, verifyLocalCredentials } from "@/lib/services/authService";
+import { createLocalAccount, localUserEmail, verifyLocalCredentials } from "@/lib/services/authService";
 
 /**
  * Two modes, picked by configuration:
@@ -70,15 +70,45 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return { id: userId, email: await localUserEmail(userId) };
 }
 
-export async function signIn(email: string, password: string): Promise<boolean> {
+/** Returns the signed-in user's id, or null when the credentials don't match. */
+export async function signIn(email: string, password: string): Promise<string | null> {
   if (authMode() === "supabase") {
-    const { error } = await (await supabase()).auth.signInWithPassword({ email, password });
-    return !error;
+    const { data, error } = await (await supabase()).auth.signInWithPassword({ email, password });
+    return error ? null : (data.user?.id ?? null);
   }
   const user = await verifyLocalCredentials(email, password);
-  if (!user) return false;
+  if (!user) return null;
+  await setLocalSession(user.id);
+  return user.id;
+}
+
+/**
+ * New account from an invite link (D-040). Supabase: the public sign-up endpoint, so no
+ * service-role key in this request path; it only yields a session when the project has email
+ * confirmation switched off. "rejected" covers Supabase's own rules (e.g. a weak password).
+ */
+export type SignUpResult = "signed_in" | "exists" | "needs_confirmation" | "rejected";
+
+export async function signUp(
+  email: string,
+  password: string,
+): Promise<{ status: SignUpResult; userId: string | null }> {
+  if (authMode() === "supabase") {
+    const { data, error } = await (await supabase()).auth.signUp({ email, password });
+    if (error) return { status: error.code === "user_already_exists" ? "exists" : "rejected", userId: null };
+    return data.session
+      ? { status: "signed_in", userId: data.user?.id ?? null }
+      : { status: "needs_confirmation", userId: null };
+  }
+  const user = await createLocalAccount(email, password);
+  if (!user) return { status: "exists", userId: null };
+  await setLocalSession(user.id);
+  return { status: "signed_in", userId: user.id };
+}
+
+async function setLocalSession(userId: string): Promise<void> {
   const exp = Math.floor(Date.now() / 1000) + LOCAL_TTL_SECONDS;
-  const payload = `${user.id}.${exp}`;
+  const payload = `${userId}.${exp}`;
   (await cookies()).set(LOCAL_COOKIE, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     sameSite: "lax",
@@ -86,7 +116,6 @@ export async function signIn(email: string, password: string): Promise<boolean> 
     path: "/",
     maxAge: LOCAL_TTL_SECONDS,
   });
-  return true;
 }
 
 export async function signOut(): Promise<void> {

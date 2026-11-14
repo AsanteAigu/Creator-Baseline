@@ -14,6 +14,14 @@ export default defineConfig({
     include: ["tests/integration/**/*.test.ts"],
     globalSetup: ["tests/integration/global-setup.ts"],
     env: {
+      // Never let a test talk to the live Supabase, Upstash or AI services (see global-setup).
+      NEXT_PUBLIC_SUPABASE_URL: "",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
+      SUPABASE_SERVICE_ROLE_KEY: "",
+      UPSTASH_REDIS_REST_URL: "",
+      UPSTASH_REDIS_REST_TOKEN: "",
+      GEMINI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
       DATABASE_URL: testDb,
       INSTAGRAM_SOURCE: "mock",
       AI_PROVIDER: "mock",

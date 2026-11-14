@@ -20,7 +20,7 @@ const CONNECT_ERRORS: Record<string, string> = {
   mismatch: "That login belongs to a different Instagram account. To add it, use Connect account.",
   forbidden: "Only owners and admins can connect accounts.",
   failed:
-    "We couldn't connect that account. Check that it is an Instagram professional account linked to a Facebook Page, then try again.",
+    "We couldn't connect that account. Check that it is an Instagram professional account in your Meta business portfolio, that you selected exactly one account, then try again.",
 };
 
 export default async function DashboardPage({
@@ -34,6 +34,9 @@ export default async function DashboardPage({
   const { context, cards } = result;
   const failed = cards.filter((c) => c.latestRun?.status === "failed");
   const canManage = context.role === "owner" || context.role === "admin";
+  // A creator login connects its own Instagram once (D-011); afterwards it only sees that account.
+  const isCreator = context.role === "creator";
+  const canConnect = canManage || (isCreator && context.creatorId === null);
   const connect = (await searchParams).connect;
   const connectError = connect !== undefined ? CONNECT_ERRORS[connect] : undefined;
 
@@ -44,12 +47,12 @@ export default async function DashboardPage({
           <h1 className="text-xl font-semibold tracking-tight">Accounts</h1>
           <p className="text-sm text-muted-foreground">{context.workspaceName}</p>
         </div>
-        {canManage ? (
+        {canConnect ? (
           // A full navigation, not a client-side Link: this route redirects to Facebook.
           // eslint-disable-next-line @next/next/no-html-link-for-pages
           <a href="/api/creators/connect" className={buttonVariants({ variant: "outline" })}>
             <UserPlus aria-hidden />
-            Connect account
+            {isCreator ? "Connect your Instagram" : "Connect account"}
           </a>
         ) : null}
       </div>
@@ -72,7 +75,13 @@ export default async function DashboardPage({
       ) : null}
 
       {cards.length === 0 ? (
-        <EmptyState title="No accounts connected yet.">Ask your agency admin to connect a creator&apos;s Instagram account.</EmptyState>
+        <EmptyState title="No accounts connected yet.">
+          {isCreator
+            ? "Use “Connect your Instagram” above. You'll log in to Instagram on Meta's screen and pick your account."
+            : canManage
+              ? "Connect a creator's Instagram, or invite the creator from Settings so they can connect it themselves."
+              : "Ask your agency admin to connect a creator's Instagram account."}
+        </EmptyState>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map(({ creator, latestRun, trend, averageScore }) => (

@@ -1,3 +1,4 @@
+import { forbidden } from "@/lib/errors";
 import { asSystem, withRepos } from "@/lib/repositories";
 import { getWorkspaceContext } from "./creatorService";
 
@@ -28,6 +29,8 @@ export interface HealthReport {
 
 export async function getHealth(userId: string): Promise<HealthReport> {
   const context = await getWorkspaceContext(userId);
+  // Lists every creator in the workspace, so a creator login (D-011) may not read it.
+  if (context.role === "creator") throw forbidden("Only agency staff can see system health.");
   const [migrations, runs] = await Promise.all([
     withRepos(asSystem(), (r) => r.health.schemaMigrations()),
     withRepos(asSystem(), (r) => r.runs.latestForWorkspace(context.workspaceId)),
