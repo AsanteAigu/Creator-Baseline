@@ -25,8 +25,12 @@ const serverEnvSchema = z
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
     DATABASE_URL: optionalString,
 
-    AI_PROVIDER: z.enum(["anthropic", "mock"]).default("mock"),
+    AI_PROVIDER: z.enum(["anthropic", "gemini", "mock"]).default("mock"),
     ANTHROPIC_API_KEY: optionalString,
+    GEMINI_API_KEY: optionalString,
+    // Checked 14 Nov 2026: 2.5 models are closed to new keys; 3.5 Flash is reliable on the free tier.
+    GEMINI_MODEL: z.string().trim().min(1).default("gemini-3.5-flash"),
+    GEMINI_FALLBACK_MODEL: z.string().trim().min(1).default("gemini-flash-lite-latest"),
 
     INSTAGRAM_SOURCE: z.enum(["graph", "mock"]).default("mock"),
     /**
@@ -61,6 +65,9 @@ const serverEnvSchema = z
 
     if (env.AI_PROVIDER === "anthropic") {
       need("ANTHROPIC_API_KEY", "when AI_PROVIDER=anthropic");
+    }
+    if (env.AI_PROVIDER === "gemini") {
+      need("GEMINI_API_KEY", "when AI_PROVIDER=gemini");
     }
 
     if (env.INSTAGRAM_SOURCE === "graph") {

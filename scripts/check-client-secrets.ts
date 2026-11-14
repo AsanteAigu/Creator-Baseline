@@ -14,6 +14,7 @@ const STATIC_DIR = path.join(process.cwd(), ".next", "static");
 /** Server-only variables that must never be referenced from client code. */
 const SECRET_NAMES = [
   "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "TOKEN_ENCRYPTION_KEY",
   "SESSION_SECRET",

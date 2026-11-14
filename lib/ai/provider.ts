@@ -27,6 +27,6 @@ export interface AiResponse {
 }
 
 export interface AiProvider {
-  readonly name: "anthropic" | "mock";
+  readonly name: "anthropic" | "gemini" | "mock";
   complete(req: AiRequest): Promise<AiResponse>;
 }

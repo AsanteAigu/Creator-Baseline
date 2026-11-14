@@ -1,7 +1,10 @@
 import { asSystem, withRepos, type AiPurpose } from "@/lib/repositories";
 import type { AiResponse } from "./provider";
 
-/** USD per million tokens (Anthropic first-party pricing, checked 2026-11-13). */
+/**
+ * USD per million tokens (Anthropic first-party pricing, checked 2026-11-13). Gemini is used
+ * on Google's free tier, so its calls cost 0 and are absent here (D-039).
+ */
 const PRICES: Record<string, { input: number; output: number; cacheRead: number }> = {
   "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.01 },
   "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2 },
@@ -45,7 +48,8 @@ export async function recordAiCall(entry: LedgerEntry): Promise<void> {
       model: entry.response?.model ?? entry.model,
       inputTokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
       outputTokens: usage.outputTokens,
-      costUsd: Math.round(costUsd(entry.model, usage) * 1_000_000) / 1_000_000,
+      // Price by the model that answered: the Gemini provider ignores the requested Claude id.
+      costUsd: Math.round(costUsd(entry.response?.model ?? entry.model, usage) * 1_000_000) / 1_000_000,
       latencyMs: entry.latencyMs,
       ok: entry.ok,
     }),

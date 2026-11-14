@@ -384,3 +384,28 @@ Permissions: `instagram_basic`, `instagram_manage_insights`, `instagram_manage_c
 
 Alternatives: Facebook Login via `/me/accounts` (needs a Page per creator); Instagram Login (not
 offered to this app).
+
+## D-039 - Gemini added as an AI provider (overrides BUILD_PROMPT §2 "Anthropic") (Confirm)
+
+The owner has no budget for an Anthropic key before the deadline; a Google AI Studio key on the
+free tier is available. `AI_PROVIDER=gemini` adds `lib/ai/gemini.ts` behind the existing
+`AiProvider` interface, so `generateStructured()`, the Zod schemas, the retry and the ledger are
+unchanged. Plain fetch to the REST API: no new dependency. Anthropic stays the default for paid use.
+
+- Model: `gemini-3.5-flash`, falling back to `gemini-flash-lite-latest` when the main model is
+  still 429/503/timing out after two retries (the free tier often reports "high demand").
+  Checked 14 Nov 2026: 2.5 models are closed to new keys; `thinkingLevel: "minimal"` works on
+  both models, `thinkingBudget: 0` is rejected by the lite one.
+- Cost: free tier, so `ai_calls.cost_usd` is 0 and the monthly AI budget never trips. The ledger
+  now prices by the model that answered, not the Claude id the services request.
+- Key in the `x-goog-api-key` header, never the URL; error bodies are not echoed (they can quote
+  comments).
+
+**Privacy - client must confirm:** on Google's free tier, prompts and responses may be used by
+Google to improve its products and may be reviewed by people. The themes call sends recent
+comment text (public, but personal data under UK GDPR). Before real creators' comments go through
+it, the client should accept that, or move to a paid Gemini tier or Anthropic, where inputs are
+not used for training.
+
+Alternatives: stay on mock (real creators would see sample text presented as analysis); wait for
+an Anthropic key (no budget).
