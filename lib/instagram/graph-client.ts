@@ -166,7 +166,16 @@ export class GraphClient {
     if (res.status === 429 || (code !== null && RATE_LIMIT_CODES.has(code))) {
       throw new InstagramError("Instagram is limiting requests right now.", "RATE_LIMITED", true);
     }
-    if (code !== null && (AUTH_CODES.has(code) || (code >= 200 && code <= 299))) {
+    // #10 and #200-299 mean the token is fine but lacks a permission: reconnecting alone won't
+    // help until the Meta login configuration grants it, so say which one is usually missing.
+    if (code !== null && (code === 10 || (code >= 200 && code <= 299))) {
+      throw new InstagramError(
+        "Meta hasn't given this app permission to read post insights. Add instagram_manage_insights to the Meta login configuration, then reconnect the account.",
+        "AUTH",
+        false,
+      );
+    }
+    if (code !== null && AUTH_CODES.has(code)) {
       throw new InstagramError("Instagram needs this account to be reconnected.", "AUTH", false);
     }
     if (res.status >= 500 || (code !== null && TRANSIENT_CODES.has(code))) {

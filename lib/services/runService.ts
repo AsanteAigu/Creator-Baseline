@@ -120,8 +120,12 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
   } catch (err) {
     const isIg = err instanceof InstagramError;
     const code = isIg ? `INSTAGRAM_${err.code}` : "INTERNAL";
+    // AUTH messages say what to fix (reconnect, or a missing permission); retrying on schedule
+    // won't help, so "we'll try again" would mislead. They never carry a token.
     const message = isIg
-      ? instagramFailureMessage(now, intervalHours(settings.scheduleInterval))
+      ? err.code === "AUTH"
+        ? err.message
+        : instagramFailureMessage(now, intervalHours(settings.scheduleInterval))
       : "Something went wrong while updating this account. We'll try again on the next scheduled update.";
     if (isIg && err.code === "AUTH") {
       await withRepos(asSystem(), (r) => r.creators.setStatus(creator.id, "needs_reauth"));
