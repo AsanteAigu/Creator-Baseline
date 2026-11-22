@@ -14,7 +14,7 @@ import {
 } from "@/lib/repositories";
 import * as planPrompt from "@/prompts/plan/system";
 import { mockPlan } from "./mockAi";
-import { REPORT_PERIOD_DAYS, ledgerFor, maxTokensFor, toPromptPost, topAndBottom, type AiContext } from "./reportService";
+import { REPORT_PERIOD_DAYS, ledgerFor, maxTokensFor, promptHistory, toPromptPost, topAndBottom, type AiContext } from "./reportService";
 import { weekDates, weekStartLondon } from "./time";
 
 export const IDEAS_PER_WEEK = 7;
@@ -41,6 +41,7 @@ export async function generateWeekPlan(ctx: AiContext, creatorId: string, now: D
     weekDates: weekDates(weekStart),
     top: top.map(toPromptPost),
     bottom: bottom.map(toPromptPost),
+    history: promptHistory(data.posts, since).history,
     themes: (data.insight?.themes ?? []).map(({ label, count, sentiment }) => ({ label, count, sentiment })),
     decided: data.decided,
   };

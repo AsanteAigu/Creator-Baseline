@@ -30,6 +30,13 @@ export interface PostView {
   postedAt: Date;
   captionExcerpt: string | null;
   reach: number | null;
+  /** Latest raw counts, so prose can cite real numbers for posts not scored yet. */
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  videoViews: number | null;
+  avgWatchTimeMs: number | null;
   score: number | null;
   label: Label | null;
   rValues: Record<string, number>;
@@ -56,6 +63,12 @@ interface PostViewDbRow {
   posted_at: Date;
   caption_excerpt: string | null;
   reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  video_views: number | null;
+  avg_watch_time_ms: number | null;
   score: number | null;
   label: Label | null;
   r_values: Record<string, number> | null;
@@ -70,6 +83,12 @@ function toPostView(r: PostViewDbRow): PostView {
     postedAt: r.posted_at,
     captionExcerpt: r.caption_excerpt,
     reach: r.reach,
+    likes: r.likes,
+    comments: r.comments,
+    shares: r.shares,
+    saves: r.saves,
+    videoViews: r.video_views,
+    avgWatchTimeMs: r.avg_watch_time_ms,
     score: r.score,
     label: r.label,
     rValues: r.r_values ?? {},
@@ -171,6 +190,16 @@ export function postsRepo(tx: Tx) {
     },
 
     /** Media ids posted since a date, newest first — the comment sample is drawn from these. */
+    /** Every media id stored for a creator: posts already fetched once. */
+    async knownMediaIds(creatorId: string): Promise<Set<string>> {
+      const rows = await tx<{ ig_media_id: string }[]>`
+        select p.ig_media_id from public.posts p
+        where p.creator_id = ${creatorId}
+          and exists (select 1 from public.post_metrics pm where pm.post_id = p.id)
+      `;
+      return new Set(rows.map((r) => r.ig_media_id));
+    },
+
     async recentMediaIds(creatorId: string, since: Date): Promise<string[]> {
       const rows = await tx<{ ig_media_id: string }[]>`
         select ig_media_id from public.posts
@@ -190,10 +219,12 @@ export function postsRepo(tx: Tx) {
       const rows = await tx<PostViewDbRow[]>`
         select * from (
           select p.id, p.ig_media_id, p.format, p.permalink, p.posted_at, p.caption_excerpt,
-                 m.reach, s.score, s.label, s.r_values
+                 m.reach, m.likes, m.comments, m.shares, m.saves, m.video_views, m.avg_watch_time_ms,
+                 s.score, s.label, s.r_values
           from public.posts p
           left join lateral (
-            select reach from public.post_metrics pm
+            select reach, likes, comments, shares, saves, video_views, avg_watch_time_ms
+            from public.post_metrics pm
             where pm.post_id = p.id order by pm.captured_at desc limit 1
           ) m on true
           left join lateral (

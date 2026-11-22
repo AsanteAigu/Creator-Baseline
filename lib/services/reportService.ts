@@ -44,6 +44,41 @@ export function toPromptPost(p: PostView): reportPrompt.ReportPostInput {
   };
 }
 
+/** Below this many posts in the period, the prompt gets the latest posts instead. */
+const MIN_HISTORY_IN_PERIOD = 6;
+const HISTORY_FALLBACK = 15;
+
+/**
+ * Every post the prose may cite, with raw counts, so the model can be specific even before
+ * scores exist. Counts are copied, never derived: the model compares, software scores (D-045).
+ */
+export function promptHistory(
+  posts: readonly PostView[],
+  since: Date,
+): { postsInPeriod: number; lastPostedOn: string | null; history: reportPrompt.HistoryPostInput[] } {
+  const inPeriod = posts.filter((p) => p.postedAt >= since);
+  const chosen = inPeriod.length >= MIN_HISTORY_IN_PERIOD ? inPeriod : posts.slice(0, HISTORY_FALLBACK);
+  const newest = posts[0];
+  return {
+    postsInPeriod: inPeriod.length,
+    lastPostedOn: newest ? londonIsoDate(newest.postedAt) : null,
+    history: chosen.map((p) => ({
+      format: p.format,
+      postedOn: londonIsoDate(p.postedAt),
+      caption: p.captionExcerpt ?? "",
+      reach: p.reach,
+      likes: p.likes,
+      comments: p.comments,
+      shares: p.shares,
+      saves: p.saves,
+      views: p.videoViews,
+      avgWatchSeconds: p.avgWatchTimeMs === null ? null : Math.round(p.avgWatchTimeMs / 100) / 10,
+      score: p.score,
+      label: p.label ?? "not scored",
+    })),
+  };
+}
+
 /** Top and bottom scored posts from the period, as the prompts and the dashboard use them. */
 export function topAndBottom(posts: readonly PostView[], since: Date): { top: PostView[]; bottom: PostView[] } {
   const scored = posts.filter((p) => p.score !== null && p.postedAt >= since);
@@ -125,6 +160,7 @@ export async function generateReportForRun(ctx: AiContext, input: ReportRunInput
   const promptInput: reportPrompt.ReportInput = {
     username: input.username,
     periodLabel: `${londonIsoDate(input.periodStart)} to ${londonIsoDate(input.periodEnd)}`,
+    ...promptHistory(input.posts, input.periodStart),
     labelCounts: input.labelCounts,
     top: top.map(toPromptPost),
     bottom: bottom.map(toPromptPost),

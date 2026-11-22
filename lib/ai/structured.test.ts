@@ -87,6 +87,24 @@ describe("generateStructured", () => {
 const REPORT_INPUT: reportPrompt.ReportInput = {
   username: "maya.cooks.uk",
   periodLabel: "2026-10-16 to 2026-11-13",
+  postsInPeriod: 9,
+  lastPostedOn: "2026-11-12",
+  history: [
+    {
+      format: "reel",
+      postedOn: "2026-11-03",
+      caption: "15-minute noodles",
+      reach: 5327,
+      likes: 410,
+      comments: 22,
+      shares: 96,
+      saves: 51,
+      views: 8120,
+      avgWatchSeconds: 11.4,
+      score: 2.1,
+      label: "strong",
+    },
+  ],
   labelCounts: { strong: 2, normal: 5, weak: 1, too_early: 1, baseline_building: 0 },
   top: [
     {
@@ -117,6 +135,7 @@ const PLAN_INPUT: planPrompt.PlanInput = {
   weekDates: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"],
   top: REPORT_INPUT.top,
   bottom: REPORT_INPUT.bottom,
+  history: REPORT_INPUT.history,
   themes: REPORT_INPUT.themes,
   decided: [{ title: "Garlic noodles", format: "reel", status: "used" }],
 };

@@ -499,3 +499,25 @@ overview when more than one account was connected.
 Alternatives: keep refusing (leaves a deleted workspace unable to reconnect at all); an account
 picker after login (an extra screen and token held between requests, for little gain when the
 agency shared those accounts on purpose).
+
+## D-045 - A year of posts, comments from the latest posts, prose that cites real numbers
+
+Found on 22 Nov 2026 with a real account whose last post was in August: the 120-day lookback
+gave 4 reels, one short of a baseline; no post fell in the 14-day comment window, so no themes;
+and with nothing scored the report prompt received empty top/bottom lists and wrote filler
+("patterns will become clear"). It was also told label counts "this run", which it read as
+four posts inside the 28-day period.
+
+- Media is listed for 365 days. Insights are re-read only for posts under 120 days old; older
+  posts are read once, at most 60 per run, so a large account's backfill spreads over runs.
+- With nothing posted in the last 14 days, comments are sampled from the 10 latest posts.
+- Report and plan prompts get every post in the period (or the 15 latest when the period has
+  fewer than 6) with its raw counts, how many posts fell in the period and the last post date.
+  The model may compare the given counts; software still does all scoring and labelling.
+  The prompts now forbid filler and require each point to name a post and a number.
+
+Scoring formulas, thresholds and the data model are unchanged.
+
+Alternatives: keep 120 days (a quiet creator never gets a baseline); re-read a full year of
+insights every run (hundreds of calls per run for a busy account); let the model compute rates
+itself (it would be re-deriving scores, which §7 forbids).

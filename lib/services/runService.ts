@@ -20,10 +20,19 @@ import { resolveAccessToken } from "./tokenService";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
-/** How far back media is fetched: covers the 30-post median window at 1-3 posts a day. */
-const LOOKBACK_DAYS = 120;
+/**
+ * How far back media is listed: a year, so a creator who posts rarely still has enough
+ * history for a baseline (D-045). Listing is cheap; insights are the per-post cost.
+ */
+const LOOKBACK_DAYS = 365;
+/** Insights are re-read only while they still move; older posts are read once (D-045). */
+const INSIGHTS_REFRESH_DAYS = 120;
+/** Older posts read per run, so a large account's first year is spread over a few runs. */
+const BACKFILL_PER_RUN = 60;
 /** Comments are sampled from the last fortnight of posts. */
 const COMMENT_LOOKBACK_DAYS = 14;
+/** With nothing posted in the fortnight, comments come from this many latest posts. */
+const COMMENT_FALLBACK_POSTS = 10;
 const ORPHAN_AFTER_MS = 30 * 60 * 1000;
 
 export interface IngestOptions {
@@ -84,8 +93,15 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
       isScorableMedia,
     );
     postsSeen = media.length;
+    const known = await withRepos(asSystem(), (r) => r.posts.knownMediaIds(creator.id));
+    const refreshFrom = now.getTime() - INSIGHTS_REFRESH_DAYS * DAY_MS;
     const insights: { media: RawMedia; metrics: RawInsights }[] = [];
+    let backfilled = 0;
     for (const m of media) {
+      const old = m.timestamp.getTime() < refreshFrom;
+      if (old && known.has(m.id)) continue;
+      if (old && backfilled >= BACKFILL_PER_RUN) continue;
+      if (old) backfilled += 1;
       try {
         insights.push({ media: m, metrics: await source.getMediaInsights(igCreator, m) });
       } catch (err) {
@@ -191,7 +207,7 @@ async function runAiSteps(input: {
 
   const ctx = { workspaceId: input.workspaceId, provider: input.ai };
   try {
-    const { posts, labelCounts, mediaIds } = await withRepos(asSystem(), async (r) => ({
+    const { posts, labelCounts, mediaIds: fortnight } = await withRepos(asSystem(), async (r) => ({
       posts: await r.posts.listViews(input.creatorId, {}, 200, null),
       labelCounts: await r.scores.labelCountsForRun(input.runId),
       mediaIds: await r.posts.recentMediaIds(
@@ -199,6 +215,10 @@ async function runAiSteps(input: {
         new Date(input.now.getTime() - COMMENT_LOOKBACK_DAYS * DAY_MS),
       ),
     }));
+
+    // A creator who hasn't posted lately still has an audience worth reading: fall back to
+    // the latest posts, so themes don't go blank after a quiet fortnight (D-045).
+    const mediaIds = fortnight.length > 0 ? fortnight : posts.slice(0, COMMENT_FALLBACK_POSTS).map((p) => p.igMediaId);
 
     // Comments live only in this scope; nothing but the model's aggregates is persisted.
     const raw: string[] = [];

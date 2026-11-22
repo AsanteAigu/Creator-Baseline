@@ -1,6 +1,6 @@
-import type { ReportPostInput } from "../report/system";
+import type { HistoryPostInput, ReportPostInput } from "../report/system";
 
-export const PROMPT_VERSION = "plan-2026-11-13.1";
+export const PROMPT_VERSION = "plan-2026-11-22.1";
 
 export interface PlanInput {
   username: string;
@@ -9,6 +9,8 @@ export interface PlanInput {
   weekDates: string[];
   top: ReportPostInput[];
   bottom: ReportPostInput[];
+  /** The latest posts with raw counts, scored or not, newest first. */
+  history: HistoryPostInput[];
   themes: { label: string; count: number; sentiment: string }[];
   /** Past suggestions the client marked, so the plan learns what they actually use. */
   decided: { title: string; format: string; status: "used" | "not_used" }[];
@@ -25,6 +27,8 @@ Rules
 - Build on what scored well (formats, topics, hooks) and on audience themes; avoid repeating what scored badly unless you change the angle.
 - If the client marked earlier ideas as used or not used, lean towards the kinds they use.
 - Each idea: title (short), format (reel, image or carousel), hook (the opening line or first-second visual), reason (why, in one sentence), data_ref (the specific post or theme it builds on, e.g. "reel, 3 Nov, sends 2.8x usual").
+- Ground every idea in a specific post from "All recent posts" or a theme: name its date, format, topic and a real number from the data in data_ref (e.g. "reel, 7 Aug, freshers' welcome, reached 5,327"). When nothing is scored yet, build on the posts with the highest reach, shares and saves.
+- Ideas must fit this creator's actual subject matter, read from the captions. No generic ideas that would suit any account.
 - Never invent statistics or posts. No emoji. British English. These are suggestions for a human to review, not guarantees.
 - summary: two sentences on the week's overall direction.
 
@@ -45,6 +49,9 @@ ${JSON.stringify(input.top, null, 1)}
 
 Bottom posts:
 ${JSON.stringify(input.bottom, null, 1)}
+
+All recent posts, newest first, with latest counts (score null = not scored yet):
+${JSON.stringify(input.history, null, 1)}
 
 Audience themes:
 ${JSON.stringify(input.themes)}

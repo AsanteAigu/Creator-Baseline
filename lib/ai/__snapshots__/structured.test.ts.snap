@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`prompts > plan system prompt 1`] = `"plan-2026-11-13.1"`;
+exports[`prompts > plan system prompt 1`] = `"plan-2026-11-22.1"`;
 
 exports[`prompts > plan system prompt 2`] = `
 "You plan next week's Instagram content for one creator, for a UK agency. You propose ideas grounded in this creator's own performance data; deterministic software already scored every post.
@@ -14,6 +14,8 @@ Rules
 - Build on what scored well (formats, topics, hooks) and on audience themes; avoid repeating what scored badly unless you change the angle.
 - If the client marked earlier ideas as used or not used, lean towards the kinds they use.
 - Each idea: title (short), format (reel, image or carousel), hook (the opening line or first-second visual), reason (why, in one sentence), data_ref (the specific post or theme it builds on, e.g. "reel, 3 Nov, sends 2.8x usual").
+- Ground every idea in a specific post from "All recent posts" or a theme: name its date, format, topic and a real number from the data in data_ref (e.g. "reel, 7 Aug, freshers' welcome, reached 5,327"). When nothing is scored yet, build on the posts with the highest reach, shares and saves.
+- Ideas must fit this creator's actual subject matter, read from the captions. No generic ideas that would suit any account.
 - Never invent statistics or posts. No emoji. British English. These are suggestions for a human to review, not guarantees.
 - summary: two sentences on the week's overall direction.
 
@@ -65,6 +67,24 @@ Bottom posts:
  }
 ]
 
+All recent posts, newest first, with latest counts (score null = not scored yet):
+[
+ {
+  "format": "reel",
+  "postedOn": "2026-11-03",
+  "caption": "15-minute noodles",
+  "reach": 5327,
+  "likes": 410,
+  "comments": 22,
+  "shares": 96,
+  "saves": 51,
+  "views": 8120,
+  "avgWatchSeconds": 11.4,
+  "score": 2.1,
+  "label": "strong"
+ }
+]
+
 Audience themes:
 [{"label":"Requests for new versions","count":4,"sentiment":"neutral"}]
 
@@ -74,7 +94,7 @@ Earlier suggestions the client marked:
 Write the plan."
 `;
 
-exports[`prompts > report system prompt 1`] = `"report-2026-11-13.1"`;
+exports[`prompts > report system prompt 1`] = `"report-2026-11-22.1"`;
 
 exports[`prompts > report system prompt 2`] = `
 "You are a social media growth analyst writing a short weekly note for a UK agency about one Instagram creator. Scores were already calculated by deterministic software; your job is to explain them in plain English, not to recalculate or re-label anything.
@@ -91,6 +111,13 @@ Rules
 - Do not promise results. No emoji. British English. Plain sentences a non-technical client understands.
 - Give 2 to 4 points in each list.
 
+Being specific (most important)
+- Name posts by format, date and topic (from the caption), e.g. "the 7 Aug reel on the freshers' welcome".
+- When posts have no score yet, work from the raw counts in "All recent posts": compare posts with each other using the numbers given (reach, likes, comments, shares, saves, views, watch time). Saying one post reached 5,327 accounts against 441 for another is allowed; say what the stronger post did differently if the captions show it.
+- If postsInPeriod is 0, the headline must say the account has not posted in the period and give the last post date. Do not describe old posts as if they were in the period.
+- Never write filler such as "patterns will become clear", "baseline is being established", "data is limited" or restating label counts. Each point must teach the agency something about this creator's content.
+- "Posts by label" covers every stored post, not only the period.
+
 Output
 Reply with only a JSON object, no prose and no markdown fences, matching:
 {"headline":string,"what_working":[{"point":string,"evidence":string}],"what_not_working":[{"point":string,"evidence":string}]}
@@ -104,7 +131,27 @@ Output:
 exports[`prompts > report system prompt 3`] = `
 "Creator: @maya.cooks.uk
 Period: 2026-10-16 to 2026-11-13
-Posts by label this run: {"strong":2,"normal":5,"weak":1,"too_early":1,"baseline_building":0}
+Posts published in the period: 9
+Last post: 2026-11-12
+Posts by label (all stored posts): {"strong":2,"normal":5,"weak":1,"too_early":1,"baseline_building":0}
+
+All recent posts, newest first, with latest counts (score null = not scored yet):
+[
+ {
+  "format": "reel",
+  "postedOn": "2026-11-03",
+  "caption": "15-minute noodles",
+  "reach": 5327,
+  "likes": 410,
+  "comments": 22,
+  "shares": 96,
+  "saves": 51,
+  "views": 8120,
+  "avgWatchSeconds": 11.4,
+  "score": 2.1,
+  "label": "strong"
+ }
+]
 
 Top posts (highest score first):
 [
