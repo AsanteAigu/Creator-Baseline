@@ -50,11 +50,7 @@ export default async function DashboardPage({
         <HeroMotif />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3 py-1 text-xs font-medium text-foreground/80 shadow-card backdrop-blur">
-              <span aria-hidden className="size-1.5 rounded-full bg-good" />
-              {context.workspaceName}
-            </p>
-            <h1 className="mt-4 font-display text-[32px] font-medium leading-tight tracking-tight sm:text-[40px]">Overview</h1>
+            <h1 className="font-display text-[32px] font-medium leading-tight tracking-tight sm:text-[40px]">Overview</h1>
             <p className="mt-1 max-w-xl text-sm text-foreground/70 sm:text-[15px]">
               Every account measured against its own usual results. Last 28 days.
             </p>
