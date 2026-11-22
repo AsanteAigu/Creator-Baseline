@@ -11,7 +11,7 @@ test("login → dashboard → account → scores → toggle a suggestion → rel
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByRole("heading", { name: "Accounts" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await page.getByRole("link", { name: /Maya Okafor/ }).click();
 
   await expect(page.getByRole("heading", { name: "Maya Okafor" })).toBeVisible();
