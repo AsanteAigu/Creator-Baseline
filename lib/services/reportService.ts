@@ -33,14 +33,19 @@ export function maxTokensFor(purpose: AiPurpose): number {
   return MAX_TOKENS[purpose];
 }
 
+/** Scores are stored to 4 dp but shown to 2 dp (CLAUDE.md); the prose must quote what users see. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export function toPromptPost(p: PostView): reportPrompt.ReportPostInput {
   return {
     format: p.format,
     postedOn: londonIsoDate(p.postedAt),
     caption: p.captionExcerpt ?? "",
-    score: p.score ?? 0,
+    score: round2(p.score ?? 0),
     label: p.label ?? "too_early",
-    rValues: p.rValues,
+    rValues: Object.fromEntries(Object.entries(p.rValues).map(([k, v]) => [k, round2(v)])),
   };
 }
 
@@ -73,7 +78,7 @@ export function promptHistory(
       saves: p.saves,
       views: p.videoViews,
       avgWatchSeconds: p.avgWatchTimeMs === null ? null : Math.round(p.avgWatchTimeMs / 100) / 10,
-      score: p.score,
+      score: p.score === null ? null : round2(p.score),
       label: p.label ?? "not scored",
     })),
   };
