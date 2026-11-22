@@ -10,6 +10,7 @@ import {
   type AccountHint,
   InstagramError,
   type ConnectedAccount,
+  type SharedProfile,
   type InstagramCreator,
   type InstagramSource,
   type RawComment,
@@ -339,22 +340,18 @@ export class GraphInstagramSource implements InstagramSource {
     if (usable.length === 0) {
       throw new InstagramError("No Instagram professional account was shared during login.", "PERMANENT", false);
     }
-    const account = pickAccount(usable, hint);
-    if (account === null) {
+    const chosen = pickAccounts(usable, hint);
+    const [first, ...rest] = chosen.map(profileOf);
+    if (first === undefined) {
       throw new InstagramError(
-        "Several new Instagram accounts were shared at once. Connect them one at a time.",
+        hint?.preferIgUserId !== undefined
+          ? "That login didn't share the account being reconnected. Select it on Meta's screen and try again."
+          : "Every Instagram account shared in that login is already connected.",
         "PERMANENT",
         false,
       );
     }
-    return {
-      token,
-      expiresAt,
-      igUserId: stringField(account, "id")!,
-      username: stringField(account, "username")!,
-      displayName: stringField(account, "name"),
-      avatarUrl: stringField(account, "profile_picture_url"),
-    };
+    return { token, expiresAt, ...first, ...(rest.length > 0 ? { alsoShared: rest } : {}) };
   }
 
   private async exchangeFacebook(token: string): Promise<{ token: string; expiresInSeconds: number }> {
@@ -492,17 +489,29 @@ function isInsightEntry(value: unknown): value is GraphInsightEntry {
  * a reconnect takes the account being reconnected; otherwise the one account not already in
  * the workspace. Several new ones at once is ambiguous and is refused.
  */
-function pickAccount(
+/**
+ * A reconnect takes only the account being reconnected. A new connection takes every shared
+ * account the workspace doesn't have yet, or the only one shared (a token refresh) (D-044).
+ */
+function pickAccounts(
   accounts: Record<string, unknown>[],
   hint: AccountHint | undefined,
-): Record<string, unknown> | null {
+): Record<string, unknown>[] {
   if (hint?.preferIgUserId !== undefined) {
-    return accounts.find((a) => stringField(a, "id") === hint.preferIgUserId) ?? null;
+    return accounts.filter((a) => stringField(a, "id") === hint.preferIgUserId);
   }
-  if (accounts.length === 1) return accounts[0] ?? null;
+  if (accounts.length === 1) return accounts;
   const known = new Set(hint?.knownIgUserIds ?? []);
-  const fresh = accounts.filter((a) => !known.has(stringField(a, "id") ?? ""));
-  return fresh.length === 1 ? (fresh[0] ?? null) : null;
+  return accounts.filter((a) => !known.has(stringField(a, "id") ?? ""));
+}
+
+function profileOf(account: Record<string, unknown>): SharedProfile {
+  return {
+    igUserId: stringField(account, "id")!,
+    username: stringField(account, "username")!,
+    displayName: stringField(account, "name"),
+    avatarUrl: stringField(account, "profile_picture_url"),
+  };
 }
 
 /** Meta's Instagram Login docs show some responses wrapped as `{ data: [ {...} ] }`; accept both. */

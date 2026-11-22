@@ -482,3 +482,20 @@ title now follows a `%s · PRODUCT_NAME` template. Behaviour, scoring and data a
 
 Alternatives: keep the top bar (less room as navigation grows); system fonts only (less
 distinctive); a component library theme (new dependency for styling alone).
+
+## D-044 - A Unified Login connects every new account it shares (supersedes part of D-041)
+
+Found on 22 Nov 2026: after both accounts were deleted from the workspace, reconnecting failed
+with "Several new Instagram accounts were shared at once". Meta keeps the portfolio's earlier
+shares, so `/me/assigned_instagram_accounts` returned both, neither was known any more, and
+D-041 refused. There is no way to share fewer accounts from Meta's screen once they are shared.
+
+Now a new connection by an owner or admin stores every shared account the workspace doesn't
+have yet, each with the same portfolio token encrypted separately (own IV). A reconnect still
+takes only the account being reconnected. A creator login that shares several is still refused,
+because a creator login is linked to exactly one account (D-011). The callback lands on the
+overview when more than one account was connected.
+
+Alternatives: keep refusing (leaves a deleted workspace unable to reconnect at all); an account
+picker after login (an extra screen and token held between requests, for little gain when the
+agency shared those accounts on purpose).

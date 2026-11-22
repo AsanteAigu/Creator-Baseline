@@ -209,6 +209,23 @@ describe("completing a connection", () => {
       "NOT_FOUND",
     );
   });
+
+  it("stores every account shared in one Unified Login, each with the portfolio token (D-044)", async () => {
+    const result = await completeConnection(ownerId, workspaceId, {
+      ...account("portfolio-token"),
+      alsoShared: [{ igUserId: OTHER_IG_USER_ID, username: "second.test.creator", displayName: null, avatarUrl: null }],
+    });
+    expect(result).toMatchObject({ creatorId, connected: 2 });
+
+    const [other] = await sql<{ id: string; username: string; token_iv: string }[]>`
+      select id, username, token_iv from creators where workspace_id = ${workspaceId} and ig_user_id = ${OTHER_IG_USER_ID}
+    `;
+    expect(other?.username).toBe("second.test.creator");
+    expect(await storedToken(other!.id)).toBe("portfolio-token");
+    expect(await status(other!.id)).toBe("active");
+    const [first] = await sql<{ token_iv: string }[]>`select token_iv from creators where id = ${creatorId}`;
+    expect(other?.token_iv).not.toBe(first?.token_iv);
+  });
 });
 
 describe("resolving a stored token", () => {

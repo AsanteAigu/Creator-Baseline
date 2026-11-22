@@ -49,13 +49,14 @@ export const GET = handle(async (req: Request) => {
   try {
     const hint = await accountHintFor(state.workspaceId, state.creatorId);
     const account = await createInstagramSource().exchangeCode(code, hint);
-    const { creatorId } = await completeConnection(
+    const { creatorId, connected } = await completeConnection(
       state.userId,
       state.workspaceId,
       account,
       state.creatorId,
     );
-    return finish(`/accounts/${creatorId}?connected=1`);
+    // Several accounts from one login: the overview shows them all.
+    return finish(connected > 1 ? "/dashboard?connect=ok" : `/accounts/${creatorId}?connected=1`);
   } catch (err) {
     // Class of failure only: messages can carry API detail, never a token.
     // InstagramError messages are written to be shown to clients and never carry a token.

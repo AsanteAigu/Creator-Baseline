@@ -83,6 +83,8 @@ export async function accountHintFor(workspaceId: string, existingCreatorId?: st
 
 export interface CompletedConnection {
   creatorId: string;
+  /** Accounts stored by this login, including `creatorId`'s. More than one on Unified Login (D-044). */
+  connected: number;
 }
 
 /**
@@ -123,7 +125,16 @@ export async function completeConnection(
     );
     if (!updated) throw notFound("That account");
     await audit(workspaceId, actorUserId, "creator.reconnected", existingCreatorId);
-    return { creatorId: existingCreatorId };
+    return { creatorId: existingCreatorId, connected: 1 };
+  }
+
+  const others = account.alsoShared ?? [];
+  // A creator login is linked to exactly one account (D-011), so it can't take several.
+  if (membership.role === "creator" && others.length > 0) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "That login shared several Instagram accounts. Select only your own account on Meta's screen.",
+    );
   }
 
   const creatorId = await withRepos(asSystem(), (r) =>
@@ -133,7 +144,23 @@ export async function completeConnection(
     await withRepos(asSystem(), (r) => r.workspaces.linkCreator(workspaceId, actorUserId, creatorId));
   }
   await audit(workspaceId, actorUserId, "creator.connected", creatorId);
-  return { creatorId };
+
+  // Same portfolio token for each, encrypted afresh so no two rows share an IV.
+  for (const profile of others) {
+    const own = encryptToken(account.token, key);
+    const otherId = await withRepos(asSystem(), (r) =>
+      r.creators.upsertConnected(workspaceId, profile.igUserId, {
+        ...write,
+        ciphertext: own.ciphertext,
+        iv: own.iv,
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      }),
+    );
+    await audit(workspaceId, actorUserId, "creator.connected", otherId);
+  }
+  return { creatorId, connected: 1 + others.length };
 }
 
 /**

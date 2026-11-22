@@ -49,7 +49,15 @@ export interface ConnectedAccount {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  /**
+   * Unified Login only: further new accounts shared in the same login. They use the same
+   * portfolio token, so connecting them needs no second login (D-044).
+   */
+  alsoShared?: SharedProfile[];
 }
+
+/** An Instagram account's profile, without the token it shares with the login's main account. */
+export type SharedProfile = Pick<ConnectedAccount, "igUserId" | "username" | "displayName" | "avatarUrl">;
 
 /**
  * Unified Login hands back one token per business portfolio, covering every Instagram account

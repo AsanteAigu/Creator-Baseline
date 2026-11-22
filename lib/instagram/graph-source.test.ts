@@ -428,7 +428,7 @@ describe("Unified Login", () => {
     expect(account).toMatchObject({ token: "suat", igUserId: "17841400000000777", username: "unified_creator", expiresAt: null });
   });
 
-  it("refuses a login that shared several accounts", async () => {
+  it("takes every account when a first login shares several (D-044)", async () => {
     const source = new GraphInstagramSource({
       ...CONFIG,
       loginType: "unified",
@@ -442,7 +442,8 @@ describe("Unified Login", () => {
         sleep: async () => {},
       }),
     });
-    await expect(source.exchangeCode("code")).rejects.toMatchObject({ code: "PERMANENT" });
+    const account = await source.exchangeCode("code");
+    expect(account).toMatchObject({ igUserId: "1", username: "a", alsoShared: [{ igUserId: "2", username: "b" }] });
   });
 });
 
@@ -465,6 +466,18 @@ describe("Unified Login with several accounts in one portfolio (D-041)", () => {
   it("takes the account the workspace does not have yet", async () => {
     const account = await twoAccounts().exchangeCode("code", { knownIgUserIds: ["111"] });
     expect(account).toMatchObject({ igUserId: "222", username: "brand.new" });
+    expect(account.alsoShared).toBeUndefined();
+  });
+
+  it("takes both after they were removed from the workspace", async () => {
+    const account = await twoAccounts().exchangeCode("code", { knownIgUserIds: [] });
+    expect(account).toMatchObject({ igUserId: "111", alsoShared: [{ igUserId: "222", username: "brand.new" }] });
+  });
+
+  it("refuses a reconnect whose account was not shared", async () => {
+    await expect(
+      twoAccounts().exchangeCode("code", { knownIgUserIds: ["333"], preferIgUserId: "333" }),
+    ).rejects.toMatchObject({ code: "PERMANENT" });
   });
 
   it("takes the account being reconnected", async () => {
