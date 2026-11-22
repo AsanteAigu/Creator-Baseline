@@ -172,7 +172,7 @@ export function SettingsForm({ initial, canEdit }: { initial: SettingsValues; ca
             <Label htmlFor="schedule">Update every</Label>
             <select
               id="schedule"
-              className="min-h-11 rounded-md border border-border bg-background px-3 text-base sm:text-sm"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base shadow-[inset_0_1px_1px_rgb(16_24_40/0.03)] hover:border-foreground/20 focus-visible:border-accent/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/12 sm:text-sm"
               value={values.scheduleInterval}
               disabled={disabled}
               onChange={(e) => setValues((s) => ({ ...s, scheduleInterval: e.target.value }))}

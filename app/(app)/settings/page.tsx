@@ -1,4 +1,5 @@
 import { Banner } from "@/components/banner";
+import { PageHeader } from "@/components/page-header";
 import { PeoplePanel } from "@/components/people-panel";
 import { SettingsForm, type SettingsValues } from "@/components/settings-form";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
@@ -41,13 +42,11 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Scoring settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Changes apply from the next update. Past scores keep the settings they were calculated with. Last changed{" "}
-          {formatDateTime(s.updatedAt)}.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Settings"
+        title="Scoring settings"
+        description={`Changes apply from the next update. Past scores keep the settings they were calculated with. Last changed ${formatDateTime(s.updatedAt)}.`}
+      />
       <SettingsForm initial={initial} canEdit={canEdit} />
       {people !== null && "message" in people ? <Banner tone="warn" title={people.message} /> : null}
       {people !== null && !("message" in people) ? (

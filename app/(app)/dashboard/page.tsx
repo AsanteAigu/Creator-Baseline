@@ -1,7 +1,7 @@
-import { AlertTriangle, ArrowUpRight, Eye, Gauge, ImageIcon, KeyRound, ShieldAlert, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Eye, Gauge, ImageIcon, KeyRound, RefreshCw, ShieldAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { Banner } from "@/components/banner";
-import { StatTile } from "@/components/charts/stat-tile";
+import { StatGroup, StatTile } from "@/components/charts/stat-tile";
 import { CreatorAvatar } from "@/components/creator-avatar";
 import { EmptyState } from "@/components/empty-state";
 import { Sparkline } from "@/components/sparkline";
@@ -46,21 +46,29 @@ export default async function DashboardPage({
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{context.workspaceName}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Every account measured against its own usual results. Last 28 days.</p>
+      <section className="surface-gradient relative overflow-hidden rounded-xl border border-white/60 p-6 shadow-card sm:p-8">
+        <HeroMotif />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3 py-1 text-xs font-medium text-foreground/80 shadow-card backdrop-blur">
+              <span aria-hidden className="size-1.5 rounded-full bg-good" />
+              {context.workspaceName}
+            </p>
+            <h1 className="mt-4 font-display text-[32px] font-medium leading-tight tracking-tight sm:text-[40px]">Overview</h1>
+            <p className="mt-1 max-w-xl text-sm text-foreground/70 sm:text-[15px]">
+              Every account measured against its own usual results. Last 28 days.
+            </p>
+          </div>
+          {canConnect ? (
+            // A full navigation, not a client-side Link: this route redirects to Facebook.
+            // eslint-disable-next-line @next/next/no-html-link-for-pages
+            <a href="/api/creators/connect" className={buttonVariants({ variant: "default" })}>
+              <UserPlus aria-hidden />
+              {isCreator ? "Connect your Instagram" : "Connect account"}
+            </a>
+          ) : null}
         </div>
-        {canConnect ? (
-          // A full navigation, not a client-side Link: this route redirects to Facebook.
-          // eslint-disable-next-line @next/next/no-html-link-for-pages
-          <a href="/api/creators/connect" className={buttonVariants({ variant: "default" })}>
-            <UserPlus aria-hidden />
-            {isCreator ? "Connect your Instagram" : "Connect account"}
-          </a>
-        ) : null}
-      </div>
+      </section>
 
       {connect === "ok" ? (
         <Banner tone="info" title="Account connected.">
@@ -89,7 +97,7 @@ export default async function DashboardPage({
         </EmptyState>
       ) : (
         <>
-          <section aria-label="Portfolio summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatGroup label="Portfolio summary">
             <StatTile
               label="Total reach"
               icon={Eye}
@@ -114,48 +122,55 @@ export default async function DashboardPage({
               value={current.strongShare === null ? "–" : formatPercent(current.strongShare)}
               hint={`${formatNumber(current.scored)} scored · ${portfolio.needsAttention === 0 ? "all accounts healthy" : `${portfolio.needsAttention} need attention`}`}
             />
-          </section>
+          </StatGroup>
 
-          <section aria-labelledby="accounts-heading" className="flex flex-col gap-3">
+          <section aria-labelledby="accounts-heading" className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 id="accounts-heading" className="text-base font-semibold tracking-tight">
+              <h2 id="accounts-heading" className="font-display text-xl font-medium tracking-tight">
                 Accounts
               </h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow-card">
                 {portfolio.accounts} connected
               </p>
             </div>
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {cards.map(({ creator, latestRun, trend, averageScore, period }) => (
                 <li key={creator.id}>
                   <Link
                     href={`/accounts/${creator.id}`}
-                    className="group block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                    className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-page"
                   >
-                    <Card className="flex h-full flex-col gap-4 p-5 transition-shadow group-hover:shadow-md">
+                    <Card className="flex h-full flex-col gap-5 p-5 transition-[box-shadow,transform] duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lift sm:p-6">
                       <div className="flex items-center gap-3">
                         <CreatorAvatar name={creator.displayName ?? creator.username} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-medium">{creator.displayName ?? creator.username}</p>
-                          <p className="truncate text-sm text-muted-foreground">@{creator.username}</p>
+                          <p className="truncate text-[13px] text-muted-foreground">@{creator.username}</p>
                         </div>
-                        <ArrowUpRight aria-hidden className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                        <span
+                          aria-hidden
+                          className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground/70 transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+                        >
+                          <ArrowUpRight className="size-4" />
+                        </span>
                       </div>
                       <div className="flex items-end justify-between gap-3">
                         <div>
-                          <p className="text-xs text-muted-foreground">Recent average score</p>
-                          <p className="text-3xl font-semibold tracking-tight tabular-nums">{averageScore === null ? "–" : formatScore(averageScore)}</p>
+                          <p className="text-[13px] text-muted-foreground">Recent average score</p>
+                          <p className="mt-1 font-display text-[40px] font-medium leading-none tracking-tight tabular-nums">
+                            {averageScore === null ? "–" : formatScore(averageScore)}
+                          </p>
                         </div>
                         <Sparkline values={trend} />
                       </div>
-                      <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">
-                        <div>
+                      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border/70 text-xs">
+                        <div className="bg-muted/70 px-3 py-2.5">
                           <dt className="text-muted-foreground">Reach, 28 days</dt>
-                          <dd className="mt-0.5 text-sm font-semibold tabular-nums">{formatCompact(period.totalReach)}</dd>
+                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">{formatCompact(period.totalReach)}</dd>
                         </div>
-                        <div>
+                        <div className="bg-muted/70 px-3 py-2.5">
                           <dt className="text-muted-foreground">Posts, 28 days</dt>
-                          <dd className="mt-0.5 text-sm font-semibold tabular-nums">{formatNumber(period.posts)}</dd>
+                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">{formatNumber(period.posts)}</dd>
                         </div>
                       </dl>
                       <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -171,7 +186,10 @@ export default async function DashboardPage({
                             Last update failed
                           </Badge>
                         ) : null}
-                        <span>{creator.lastSyncedAt ? `Updated ${formatDateTime(creator.lastSyncedAt)}` : "Not updated yet"}</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <RefreshCw aria-hidden className="size-3.5" />
+                          {creator.lastSyncedAt ? `Updated ${formatDateTime(creator.lastSyncedAt)}` : "Not updated yet"}
+                        </span>
                       </div>
                     </Card>
                   </Link>
@@ -180,7 +198,7 @@ export default async function DashboardPage({
             </ul>
           </section>
           {portfolio.needsAttention > 0 ? (
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <p className="flex items-center gap-2 rounded-xl bg-card px-4 py-3 text-xs text-muted-foreground shadow-card">
               <ShieldAlert aria-hidden className="size-4" />
               {portfolio.needsAttention} account{portfolio.needsAttention === 1 ? " needs" : "s need"} attention. Open the account to reconnect or retry.
             </p>
@@ -188,5 +206,37 @@ export default async function DashboardPage({
         </>
       )}
     </>
+  );
+}
+
+/** Decorative rising line over a dashed baseline: the product idea, drawn behind the hero text. */
+function HeroMotif() {
+  return (
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute -right-10 bottom-0 h-full w-[70%] max-w-[560px] opacity-70"
+      viewBox="0 0 560 200"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <linearGradient id="hero-line" x1="0" x2="1">
+          <stop offset="0" stopColor="#2a78d6" stopOpacity="0" />
+          <stop offset="1" stopColor="#2a78d6" stopOpacity="0.55" />
+        </linearGradient>
+        <linearGradient id="hero-fill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#2a78d6" stopOpacity="0.12" />
+          <stop offset="1" stopColor="#2a78d6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <line x1="0" x2="560" y1="130" y2="130" stroke="#1d2433" strokeOpacity="0.18" strokeDasharray="4 6" />
+      <path d="M0 160 L80 140 L150 150 L230 110 L300 125 L380 80 L450 95 L560 40 L560 200 L0 200 Z" fill="url(#hero-fill)" />
+      <path
+        d="M0 160 L80 140 L150 150 L230 110 L300 125 L380 80 L450 95 L560 40"
+        fill="none"
+        stroke="url(#hero-line)"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

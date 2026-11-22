@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth/session";
 import { PRODUCT_NAME } from "@/lib/config";
 import { previewInvite } from "@/lib/services/memberService";
 import { InviteForm } from "./invite-form";
 
-export const metadata = { title: `Join · ${PRODUCT_NAME}`, robots: { index: false } };
+export const metadata = { title: "Join", robots: { index: false } };
 
 // Reads the session cookie and live invite state: never prerender.
 export const dynamic = "force-dynamic";
@@ -57,9 +58,14 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4">
-      <p className="text-center text-lg font-semibold tracking-tight">{PRODUCT_NAME}</p>
-      <Card>{body}</Card>
+    <main className="surface-gradient flex min-h-dvh items-center justify-center px-4 py-10">
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <div className="flex items-center justify-center gap-2.5 font-display text-lg font-semibold tracking-tight">
+          <BrandMark className="size-9" />
+          {PRODUCT_NAME}
+        </div>
+        <Card className="shadow-lift">{body}</Card>
+      </div>
     </main>
   );
 }

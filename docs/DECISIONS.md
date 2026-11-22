@@ -469,3 +469,16 @@ avoid hydration mismatches between Node and browser number formatting.
 
 Alternatives: Recharts (a new dependency, harder to hold to the palette and accessibility rules;
 the existing charts were already hand-built SVG); a scaled viewBox (oversized labels on desktop).
+
+## D-043 - Sidebar shell, soft-panel visual language, self-hosted fonts
+
+22 Nov 2026: the signed-in app moves from a top bar to a desktop sidebar (compact pill tabs on
+mobile) on a soft grey canvas with white rounded panels, pill buttons and grouped stat panels.
+Headings and large figures use Outfit, body text Inter, both through `next/font/google`, which
+self-hosts the files at build time so browsers never call Google and no package is added. Soft
+gradient surfaces mark the overview hero, the plan call to action and the sign-in visual (an
+illustration, aria-hidden, not real data). Page titles use a shared `PageHeader`; the browser
+title now follows a `%s · PRODUCT_NAME` template. Behaviour, scoring and data are unchanged.
+
+Alternatives: keep the top bar (less room as navigation grows); system fonts only (less
+distinctive); a component library theme (new dependency for styling alone).

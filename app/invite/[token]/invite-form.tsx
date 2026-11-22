@@ -30,11 +30,11 @@ export function InviteForm({ token, email, signedIn }: { token: string; email: s
         </>
       )}
       {state.error ? (
-        <p role="alert" className="text-sm text-[#9f1f1f]">
+        <p role="alert" className="rounded-lg bg-[#d03b3b]/8 px-3 py-2 text-sm text-[#9f1f1f]">
           {state.error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="mt-1 w-full">
         {pending ? "Joining…" : "Accept invite"}
       </Button>
     </form>

@@ -46,7 +46,7 @@ export function DisconnectButton({ creatorId, name }: { creatorId: string; name:
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
       <p className="text-sm">
         Disconnect <span className="font-medium">{name}</span> and delete their posts, scores, reports and plans? This
         cannot be undone.

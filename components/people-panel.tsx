@@ -105,7 +105,7 @@ export function PeoplePanel({ people, invites }: { people: PersonRow[]; invites:
             <Label htmlFor="invite-role">Role</Label>
             <select
               id="invite-role"
-              className="min-h-11 rounded-md border border-border bg-background px-3 text-base sm:text-sm"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base shadow-[inset_0_1px_1px_rgb(16_24_40/0.03)] hover:border-foreground/20 focus-visible:border-accent/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/12 sm:text-sm"
               value={role}
               onChange={(e) => setRole(e.target.value)}
             >
@@ -128,7 +128,7 @@ export function PeoplePanel({ people, invites }: { people: PersonRow[]; invites:
         ) : null}
 
         {created ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/40 p-3">
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/50 p-4">
             <p className="text-sm">
               Invite link for <span className="font-medium">{created.email}</span>. Copy it now: it is only shown once.
             </p>
@@ -144,7 +144,7 @@ export function PeoplePanel({ people, invites }: { people: PersonRow[]; invites:
 
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">Members</h3>
-          <ul className="divide-y divide-border rounded-md border border-border">
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
             {people.map((p) => (
               <li key={p.userId} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
                 <span className="min-w-0 flex-1 truncate">
@@ -181,7 +181,7 @@ export function PeoplePanel({ people, invites }: { people: PersonRow[]; invites:
         {invites.length > 0 ? (
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-medium">Pending invites</h3>
-            <ul className="divide-y divide-border rounded-md border border-border">
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
               {invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
                   <span className="min-w-0 flex-1 truncate">{i.email}</span>

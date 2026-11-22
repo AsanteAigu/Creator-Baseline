@@ -41,7 +41,7 @@ export function SuggestionToggle({ suggestionId, initial }: { suggestionId: stri
         onClick={() => choose(value)}
         data-testid={`suggestion-${value}`}
         className={cn(
-          "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors",
+          "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
           on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted",
         )}
       >

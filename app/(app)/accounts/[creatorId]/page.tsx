@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Eye, Gauge, ImageIcon, KeyRound, Users } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Check, Eye, Gauge, ImageIcon, KeyRound, Users, X } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiDisclaimer } from "@/components/ai-disclaimer";
@@ -11,11 +11,12 @@ import { PostRow } from "@/components/post-row";
 import { RunNowButton } from "@/components/run-now-button";
 import { ColumnChart } from "@/components/charts/column-chart";
 import { LabelMixBar } from "@/components/charts/label-mix-bar";
-import { StatTile } from "@/components/charts/stat-tile";
+import { StatGroup, StatTile } from "@/components/charts/stat-tile";
 import { ScoreTrendChart } from "@/components/score-trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { toDelta } from "@/app/(app)/stat-helpers";
 import { uuidParam } from "@/lib/http";
@@ -67,34 +68,27 @@ export default async function AccountPage({
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/dashboard" className="hover:text-foreground hover:underline">
-          Overview
-        </Link>
-        <ChevronRight aria-hidden className="size-3.5" />
-        <span className="truncate text-foreground">{name}</span>
-      </nav>
-
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-4">
-          <CreatorAvatar name={name} className="size-14 text-base" />
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">{name}</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              @{o.creator.username}
-              {o.creator.lastSyncedAt ? ` · Updated ${formatDateTime(o.creator.lastSyncedAt)}` : " · Not updated yet"}
-              {o.nextUpdateAt ? ` · Next update around ${formatDateTime(o.nextUpdateAt)}` : ""}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/accounts/${o.creator.id}/plan`} className={buttonVariants({ variant: "default" })}>
-            <CalendarDays aria-hidden />
-            This week&apos;s plan
-          </Link>
-          {canRun ? <RunNowButton creatorId={o.creator.id} /> : null}
-        </div>
-      </section>
+      <PageHeader
+        crumbs={[{ label: "Overview", href: "/dashboard" }, { label: name }]}
+        leading={<CreatorAvatar name={name} className="size-16 text-lg" />}
+        eyebrow={`@${o.creator.username}`}
+        title={name}
+        description={
+          <>
+            {o.creator.lastSyncedAt ? `Updated ${formatDateTime(o.creator.lastSyncedAt)}` : "Not updated yet"}
+            {o.nextUpdateAt ? ` · Next update around ${formatDateTime(o.nextUpdateAt)}` : ""}
+          </>
+        }
+        actions={
+          <>
+            {canRun ? <RunNowButton creatorId={o.creator.id} /> : null}
+            <Link href={`/accounts/${o.creator.id}/plan`} className={buttonVariants({ variant: "default" })}>
+              <CalendarDays aria-hidden />
+              This week&apos;s plan
+            </Link>
+          </>
+        }
+      />
 
       {justConnected ? (
         <Banner tone="info" title="Account connected.">
@@ -134,7 +128,7 @@ export default async function AccountPage({
         </Banner>
       ) : null}
 
-      <section aria-label="Last 28 days" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StatGroup label="Last 28 days">
         <StatTile
           label="Reach"
           icon={Eye}
@@ -159,7 +153,7 @@ export default async function AccountPage({
           value={a.current.medianReach === null ? "–" : formatCompact(a.current.medianReach)}
           delta={toDelta(compareValues(a.current.medianReach, a.previous.medianReach), "relative")}
         />
-      </section>
+      </StatGroup>
 
       <Card>
         <CardHeader>
@@ -308,9 +302,9 @@ export default async function AccountPage({
           <CardContent className="flex flex-col gap-4">
             {o.report ? (
               <>
-                <p className="font-medium">{o.report.headline}</p>
-                <ReportList title="Working" items={o.report.whatWorking} />
-                <ReportList title="Not working" items={o.report.whatNotWorking} />
+                <p className="font-display text-lg font-medium leading-snug tracking-tight">{o.report.headline}</p>
+                <ReportList title="Working" tone="good" items={o.report.whatWorking} />
+                <ReportList title="Not working" tone="bad" items={o.report.whatNotWorking} />
                 <AiDisclaimer />
               </>
             ) : (
@@ -332,7 +326,7 @@ export default async function AccountPage({
             {o.insight && sentimentTotal > 0 ? (
               <>
                 <div>
-                  <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full" aria-hidden>
+                  <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full" aria-hidden>
                     <div className="bg-good" style={{ width: `${(o.insight.positive / sentimentTotal) * 100}%` }} />
                     <div className="bg-[var(--status-neutral)]" style={{ width: `${(o.insight.neutral / sentimentTotal) * 100}%` }} />
                     <div className="bg-critical" style={{ width: `${(o.insight.negative / sentimentTotal) * 100}%` }} />
@@ -348,7 +342,7 @@ export default async function AccountPage({
                 </div>
                 <ul className="flex flex-col divide-y divide-border">
                   {o.insight.themes.map((t) => (
-                    <li key={t.label} className="py-2">
+                    <li key={t.label} className="py-3 first:pt-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium">{t.label}</p>
                         <Badge tone={t.sentiment === "positive" ? "good" : t.sentiment === "negative" ? "bad" : "neutral"}>
@@ -370,21 +364,32 @@ export default async function AccountPage({
 
       <Link
         href={`/accounts/${o.creator.id}/plan`}
-        className="flex min-h-11 items-center justify-between rounded-lg border border-border bg-card p-4 hover:bg-muted/40"
+        className="surface-gradient group flex items-center justify-between gap-4 rounded-xl border border-white/60 p-6 shadow-card transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 sm:p-8"
       >
-        <span className="flex items-center gap-2 font-medium">
-          <CalendarDays aria-hidden className="size-4" /> See this week&apos;s content plan
+        <span className="flex flex-col gap-1">
+          <span className="inline-flex items-center gap-2 text-xs font-medium text-foreground/70">
+            <CalendarDays aria-hidden className="size-4" /> Content plan
+          </span>
+          <span className="font-display text-xl font-medium tracking-tight sm:text-2xl">See this week&apos;s content plan</span>
+          <span className="text-sm text-foreground/70">Ideas drafted from what is working for {name}.</span>
         </span>
-        <ChevronRight aria-hidden className="size-4" />
+        <span
+          aria-hidden
+          className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-card text-foreground shadow-card transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+        >
+          <ArrowUpRight className="size-5" />
+        </span>
       </Link>
 
       {canRun ? (
-        <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
-          <h2 className="text-base font-semibold tracking-tight">Disconnect this account</h2>
-          <p className="text-sm text-muted-foreground">
-            Deletes this creator&apos;s posts, metrics, scores, reports and plans, and revokes the access token at
-            Meta. Past figures cannot be recovered.
-          </p>
+        <section className="flex flex-col gap-4 rounded-xl border border-[#d03b3b]/20 bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="max-w-2xl">
+            <h2 className="font-display text-[17px] font-medium tracking-tight">Disconnect this account</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Deletes this creator&apos;s posts, metrics, scores, reports and plans, and revokes the access token at
+              Meta. Past figures cannot be recovered.
+            </p>
+          </div>
           <DisconnectButton creatorId={o.creator.id} name={name} />
         </section>
       ) : null}
@@ -424,15 +429,36 @@ function PostListCard({
   );
 }
 
-function ReportList({ title, items }: { title: string; items: { point: string; evidence: string }[] }) {
+function ReportList({
+  title,
+  tone,
+  items,
+}: {
+  title: string;
+  tone: "good" | "bad";
+  items: { point: string; evidence: string }[];
+}) {
+  const Icon = tone === "good" ? Check : X;
   return (
     <div>
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <ul className="mt-1 flex list-disc flex-col gap-2 pl-5 text-sm">
+      <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{title}</h3>
+      <ul className="mt-2 flex flex-col gap-3 text-sm">
         {items.map((item) => (
-          <li key={item.point}>
-            {item.point}
-            <span className="block text-muted-foreground">{item.evidence}</span>
+          <li key={item.point} className="flex gap-3">
+            <span
+              aria-hidden
+              className={
+                tone === "good"
+                  ? "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#0ca30c]/10 text-good-text"
+                  : "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#d03b3b]/10 text-critical-text"
+              }
+            >
+              <Icon className="size-3" />
+            </span>
+            <span>
+              {item.point}
+              <span className="mt-0.5 block text-muted-foreground">{item.evidence}</span>
+            </span>
           </li>
         ))}
       </ul>

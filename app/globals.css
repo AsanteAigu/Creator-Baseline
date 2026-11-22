@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
-/* shadcn/ui tokens on a cool neutral base, plus chart roles from the data-viz reference palette. */
+/*
+ * Soft grey canvas, white rounded panels, near-black primary. Chart roles come from the
+ * data-viz reference palette; status colours are reserved for labels.
+ */
 :root {
-  --radius: 0.75rem;
+  --radius: 1rem;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.2 0.02 265);
-  --page: oklch(0.975 0.004 265);
+  --foreground: oklch(0.19 0.012 265);
+  --page: oklch(0.968 0.003 265);
+  --sidebar: oklch(1 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 265);
-  --muted: oklch(0.965 0.005 265);
-  --muted-foreground: oklch(0.52 0.02 265);
-  --border: oklch(0.915 0.008 265);
-  --primary: oklch(0.27 0.045 265);
+  --card-foreground: oklch(0.19 0.012 265);
+  --muted: oklch(0.962 0.004 265);
+  --muted-foreground: oklch(0.53 0.014 265);
+  --border: oklch(0.925 0.005 265);
+  --primary: oklch(0.2 0.012 265);
   --primary-foreground: oklch(0.985 0 0);
   --accent: oklch(0.55 0.15 255);
   --destructive: oklch(0.577 0.245 27.325);
@@ -19,8 +23,8 @@
   /* Charts: one series hue, status colours reserved for labels, recessive chrome. */
   --chart-1: #2a78d6;
   --chart-1-wash: rgb(42 120 214 / 0.1);
-  --chart-grid: #e6e6ea;
-  --chart-axis: #c9c9d0;
+  --chart-grid: #ececf0;
+  --chart-axis: #d2d2d8;
   --chart-muted: #8a8a93;
   --chart-band: rgb(42 120 214 / 0.06);
   --status-good: #0ca30c;
@@ -31,11 +35,12 @@
 }
 
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-outfit), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-page: var(--page);
+  --color-sidebar: var(--sidebar);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-muted: var(--muted);
@@ -50,10 +55,12 @@
   --color-good-text: var(--status-good-text);
   --color-critical: var(--status-critical);
   --color-critical-text: var(--status-critical-text);
+  --radius-xl: calc(var(--radius) + 4px);
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-sm: calc(var(--radius) - 6px);
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.03);
+  --radius-md: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 8px);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.03), 0 2px 8px -2px rgb(16 24 40 / 0.04);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 0.04), 0 12px 28px -8px rgb(16 24 40 / 0.12);
 }
 
 @layer base {
@@ -63,5 +70,32 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* Soft sky-to-lavender wash for hero and call-to-action surfaces. */
+  .surface-gradient {
+    background:
+      radial-gradient(120% 140% at 0% 0%, oklch(0.9 0.05 240) 0%, transparent 55%),
+      radial-gradient(90% 120% at 100% 100%, oklch(0.91 0.05 290) 0%, transparent 60%),
+      linear-gradient(135deg, oklch(0.955 0.02 250), oklch(0.97 0.012 280));
+  }
+  /* Deep variant for the sign-in visual. */
+  .surface-gradient-deep {
+    background:
+      radial-gradient(80% 70% at 20% 15%, oklch(0.62 0.12 245 / 0.9) 0%, transparent 60%),
+      radial-gradient(70% 70% at 90% 90%, oklch(0.6 0.13 285 / 0.85) 0%, transparent 60%),
+      linear-gradient(160deg, oklch(0.32 0.06 260), oklch(0.2 0.04 270));
+  }
+  .glass {
+    background: rgb(255 255 255 / 0.72);
+    backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid rgb(255 255 255 / 0.6);
   }
 }
