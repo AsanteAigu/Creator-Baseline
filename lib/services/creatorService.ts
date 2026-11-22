@@ -16,8 +16,8 @@ import {
   type TrendPoint,
 } from "@/lib/repositories";
 import { MIN_BASELINE_POSTS, type Label, type PostFormat } from "@/lib/scoring";
-import { ANALYTICS_PERIOD_DAYS, buildAccountAnalytics, summarisePeriod, within, type AccountAnalytics, type PeriodSummary } from "./analytics";
-import { REPORT_PERIOD_DAYS, topAndBottom } from "./reportService";
+import { ANALYTICS_PERIOD_DAYS, autoRange, buildAccountAnalytics, type AnalyticsRange, summarisePeriod, within, type AccountAnalytics, type PeriodSummary } from "./analytics";
+import { topAndBottom } from "./reportService";
 import { ingestCreator, type IngestResult } from "./runService";
 import { intervalHours } from "./time";
 
@@ -126,6 +126,8 @@ export interface CreatorOverview {
   /** Why AI sections are missing or stale, if they are. */
   aiNote: { code: string; message: string } | null;
   analytics: AccountAnalytics;
+  /** True when the range was picked for the user because shorter ones were empty. */
+  rangeIsAuto: boolean;
 }
 
 async function requireCreator(r: Repos, creatorId: string): Promise<Creator> {
@@ -135,7 +137,15 @@ async function requireCreator(r: Repos, creatorId: string): Promise<Creator> {
   return creator;
 }
 
-export async function getOverview(userId: string, creatorId: string, now = new Date()): Promise<CreatorOverview> {
+/** Posts loaded for the account page: enough for a year at a busy creator's pace. */
+const OVERVIEW_POST_LIMIT = 600;
+
+export async function getOverview(
+  userId: string,
+  creatorId: string,
+  now = new Date(),
+  requestedRange: AnalyticsRange | null = null,
+): Promise<CreatorOverview> {
   const context = await getWorkspaceContext(userId);
   return withRepos(asUser(userId), async (r) => {
     const creator = await requireCreator(r, creatorId);
@@ -146,8 +156,9 @@ export async function getOverview(userId: string, creatorId: string, now = new D
     const labelCounts = lastSucceededRun
       ? await r.scores.labelCountsForRun(lastSucceededRun.id)
       : { strong: 0, normal: 0, weak: 0, too_early: 0, baseline_building: 0 };
-    const posts = await r.posts.listViews(creatorId, {}, 200, null);
-    const { top, bottom } = topAndBottom(posts, new Date(now.getTime() - REPORT_PERIOD_DAYS * DAY_MS));
+    const posts = await r.posts.listViews(creatorId, {}, OVERVIEW_POST_LIMIT, null);
+    const range = requestedRange ?? autoRange(posts, now);
+    const { top, bottom } = topAndBottom(posts, new Date(now.getTime() - range * DAY_MS));
     const baselines = await r.scores.latestBaselines(creatorId);
     const report = await r.insights.latestReport(creatorId);
     const insight = await r.insights.latestCommentInsight(creatorId);
@@ -182,7 +193,8 @@ export async function getOverview(userId: string, creatorId: string, now = new D
         report.periodEnd.getTime() === lastSucceededRun.windowStart.getTime(),
       insight,
       aiNote,
-      analytics: buildAccountAnalytics(posts, now),
+      analytics: buildAccountAnalytics(posts, now, range),
+      rangeIsAuto: requestedRange === null && range !== ANALYTICS_PERIOD_DAYS,
     };
   });
 }

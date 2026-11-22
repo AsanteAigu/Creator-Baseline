@@ -10,6 +10,27 @@ import { addDaysIso, londonIsoDate, weekStartLondon } from "./time";
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const ANALYTICS_PERIOD_DAYS = 28;
 export const REACH_WEEKS = 12;
+
+/** The account page's period switch: four weeks, a quarter, a year (D-046). */
+export const ANALYTICS_RANGES = [28, 90, 365] as const;
+export type AnalyticsRange = (typeof ANALYTICS_RANGES)[number];
+const WEEKS_FOR_RANGE: Record<AnalyticsRange, number> = { 28: REACH_WEEKS, 90: 13, 365: 52 };
+
+export function parseRange(value: string | undefined): AnalyticsRange | null {
+  const n = Number(value);
+  return (ANALYTICS_RANGES as readonly number[]).includes(n) ? (n as AnalyticsRange) : null;
+}
+
+/**
+ * The shortest range with at least one post, so a quiet account opens on its real history
+ * instead of empty charts. Falls back to 28 days when nothing was posted in a year.
+ */
+export function autoRange(posts: PostView[], now: Date): AnalyticsRange {
+  for (const days of ANALYTICS_RANGES) {
+    if (within(posts, new Date(now.getTime() - days * DAY_MS), now).length > 0) return days;
+  }
+  return ANALYTICS_PERIOD_DAYS;
+}
 const FORMATS: PostFormat[] = ["reel", "carousel", "image"];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -39,6 +60,12 @@ export interface WeeklyReach {
 }
 
 export interface AccountAnalytics {
+  /** Days covered by the summary tiles and outcomes. */
+  days: AnalyticsRange;
+  /** Days covered by the format and weekday breakdowns: never under 90. */
+  breakdownDays: number;
+  /** Weeks shown in the weekly reach chart. */
+  weeks: number;
   current: PeriodSummary;
   previous: PeriodSummary;
   byFormat: GroupSummary[];
@@ -97,14 +124,20 @@ export function within(posts: PostView[], from: Date, to: Date): PostView[] {
   return posts.filter((p) => p.postedAt >= from && p.postedAt < to);
 }
 
-export function buildAccountAnalytics(posts: PostView[], now: Date): AccountAnalytics {
-  const periodMs = ANALYTICS_PERIOD_DAYS * DAY_MS;
+export function buildAccountAnalytics(
+  posts: PostView[],
+  now: Date,
+  days: AnalyticsRange = ANALYTICS_PERIOD_DAYS,
+): AccountAnalytics {
+  const periodMs = days * DAY_MS;
   const currentStart = new Date(now.getTime() - periodMs);
   const current = within(posts, currentStart, now);
   const previous = within(posts, new Date(currentStart.getTime() - periodMs), currentStart);
 
-  // Breakdowns use the last 90 days so each group has enough posts to mean something.
-  const recent = within(posts, new Date(now.getTime() - 90 * DAY_MS), now);
+  // Breakdowns use at least 90 days so each group has enough posts to mean something.
+  const breakdownDays = Math.max(days, 90);
+  const recent = within(posts, new Date(now.getTime() - breakdownDays * DAY_MS), now);
+  const weekCount = WEEKS_FOR_RANGE[days];
 
   const byFormat = FORMATS.map((f) => summariseGroup(f, recent.filter((p) => p.format === f))).filter(
     (g) => g.posts > 0,
@@ -112,7 +145,7 @@ export function buildAccountAnalytics(posts: PostView[], now: Date): AccountAnal
   const byWeekday = WEEKDAYS.map((day, i) => summariseGroup(day, recent.filter((p) => londonWeekday(p.postedAt) === i)));
 
   const thisWeek = weekStartLondon(now);
-  const weeks = Array.from({ length: REACH_WEEKS }, (_, i) => addDaysIso(thisWeek, -7 * (REACH_WEEKS - 1 - i)));
+  const weeks = Array.from({ length: weekCount }, (_, i) => addDaysIso(thisWeek, -7 * (weekCount - 1 - i)));
   const weeklyReach = weeks.map((weekStart) => {
     const end = addDaysIso(weekStart, 7);
     const inWeek = posts.filter((p) => {
@@ -128,6 +161,9 @@ export function buildAccountAnalytics(posts: PostView[], now: Date): AccountAnal
 
   const scoredCurrent = current.filter(isScored);
   return {
+    days,
+    breakdownDays,
+    weeks: weekCount,
     current: summarisePeriod(current),
     previous: summarisePeriod(previous),
     byFormat,

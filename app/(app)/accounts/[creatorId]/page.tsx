@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { RangeTabs } from "@/components/range-tabs";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { toDelta } from "@/app/(app)/stat-helpers";
 import { uuidParam } from "@/lib/http";
@@ -33,12 +34,18 @@ import {
   formatScore,
   formatShortDate,
 } from "@/lib/format";
-import { compareValues } from "@/lib/services/analytics";
+import { ANALYTICS_RANGES, compareValues, parseRange } from "@/lib/services/analytics";
 import type { Label } from "@/lib/scoring";
 import { getOverview } from "@/lib/services/creatorService";
 import { getSettings } from "@/lib/services/settingsService";
 
 export const metadata = { title: "Account" };
+
+const RANGE_LABELS: Record<number, { tab: string; text: string; comparison: string }> = {
+  28: { tab: "28 days", text: "last 28 days", comparison: "vs previous 28 days" },
+  90: { tab: "90 days", text: "last 90 days", comparison: "vs previous 90 days" },
+  365: { tab: "12 months", text: "last 12 months", comparison: "vs previous 12 months" },
+};
 
 const SENTIMENT_TEXT = { positive: "Positive", neutral: "Neutral", negative: "Negative" } as const;
 
@@ -47,13 +54,14 @@ export default async function AccountPage({
   searchParams,
 }: {
   params: Promise<{ creatorId: string }>;
-  searchParams: Promise<{ connected?: string }>;
+  searchParams: Promise<{ connected?: string; range?: string }>;
 }) {
   const { creatorId } = await params;
   if (!uuidParam.safeParse(creatorId).success) notFound();
   const userId = await requirePageUser();
+  const query = await searchParams;
   const result = await withPageErrors(async () => ({
-    overview: await getOverview(userId, creatorId),
+    overview: await getOverview(userId, creatorId, new Date(), parseRange(query.range)),
     settings: (await getSettings(userId)).settings,
   }));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
@@ -61,7 +69,10 @@ export default async function AccountPage({
   const a = o.analytics;
   const canRun = o.role === "owner" || o.role === "admin";
   const name = o.creator.displayName ?? o.creator.username;
-  const justConnected = (await searchParams).connected === "1";
+  const justConnected = query.connected === "1";
+  const range = RANGE_LABELS[a.days] ?? { tab: "28 days", text: "last 28 days", comparison: "vs previous 28 days" };
+  const breakdownText = a.breakdownDays === 365 ? "last 12 months" : `last ${a.breakdownDays} days`;
+  const weekdayHasPosts = a.byWeekday.some((g) => g.posts > 0);
 
   const sentimentTotal = o.insight ? o.insight.positive + o.insight.neutral + o.insight.negative : 0;
   const scoredCount = o.labelCounts.strong + o.labelCounts.normal + o.labelCounts.weak;
@@ -128,30 +139,47 @@ export default async function AccountPage({
         </Banner>
       ) : null}
 
-      <StatGroup label="Last 28 days">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {o.rangeIsAuto
+            ? `Nothing was posted recently, so this shows the ${range.text}.`
+            : `Figures for the ${range.text}.`}
+        </p>
+        <RangeTabs
+          options={ANALYTICS_RANGES.map((d) => ({ value: d, label: RANGE_LABELS[d]?.tab ?? `${d} days` }))}
+          current={a.days}
+          hrefFor={(d) => `/accounts/${o.creator.id}?range=${d}`}
+        />
+      </div>
+
+      <StatGroup label={`Summary, ${range.text}`}>
         <StatTile
           label="Reach"
           icon={Eye}
           value={formatCompact(a.current.totalReach)}
           delta={toDelta(compareValues(a.current.totalReach, a.previous.totalReach), "relative")}
+          comparison={range.comparison}
         />
         <StatTile
           label="Average score"
           icon={Gauge}
           value={a.current.averageScore === null ? "–" : formatScore(a.current.averageScore)}
           delta={toDelta(compareValues(a.current.averageScore, a.previous.averageScore), "score")}
+          comparison={range.comparison}
         />
         <StatTile
           label="Posts published"
           icon={ImageIcon}
           value={formatNumber(a.current.posts)}
           delta={toDelta(compareValues(a.current.posts, a.previous.posts), "relative")}
+          comparison={range.comparison}
         />
         <StatTile
           label="Typical reach per post"
           icon={Users}
           value={a.current.medianReach === null ? "–" : formatCompact(a.current.medianReach)}
           delta={toDelta(compareValues(a.current.medianReach, a.previous.medianReach), "relative")}
+          comparison={range.comparison}
         />
       </StatGroup>
 
@@ -200,11 +228,11 @@ export default async function AccountPage({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Weekly reach</CardTitle>
-            <CardDescription>Accounts reached by the posts published each week, last 12 weeks.</CardDescription>
+            <CardDescription>Accounts reached by the posts published each week, last {a.weeks} weeks.</CardDescription>
           </CardHeader>
           <CardContent>
             <ColumnChart
-              ariaLabel="Weekly reach for the last 12 weeks."
+              ariaLabel={`Weekly reach for the last ${a.weeks} weeks.`}
               valueFormat="compact"
               groupHeading="Week starting"
               valueHeading="Reach"
@@ -221,7 +249,7 @@ export default async function AccountPage({
         <Card>
           <CardHeader>
             <CardTitle>Post outcomes</CardTitle>
-            <CardDescription>How the last 28 days&apos; scored posts compare with this creator&apos;s usual.</CardDescription>
+            <CardDescription>How scored posts from the {range.text} compare with this creator&apos;s usual.</CardDescription>
           </CardHeader>
           <CardContent>
             <LabelMixBar counts={a.labelMix} />
@@ -233,12 +261,12 @@ export default async function AccountPage({
         <Card>
           <CardHeader>
             <CardTitle>Score by format</CardTitle>
-            <CardDescription>Average score per format, last 90 days.</CardDescription>
+            <CardDescription>Average score per format, {breakdownText}.</CardDescription>
           </CardHeader>
           <CardContent>
             {a.byFormat.length > 0 ? (
               <ColumnChart
-                ariaLabel="Average score by post format over the last 90 days."
+                ariaLabel={`Average score by post format over the ${breakdownText}.`}
                 valueFormat="score"
                 groupHeading="Format"
                 valueHeading="Average score"
@@ -255,18 +283,19 @@ export default async function AccountPage({
                 }))}
               />
             ) : (
-              <EmptyState title="No posts in the last 90 days." />
+              <EmptyState title={`No posts in the ${breakdownText}.`} />
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle>Score by day posted</CardTitle>
-            <CardDescription>Average score by the London weekday a post went out, last 90 days.</CardDescription>
+            <CardDescription>Average score by the London weekday a post went out, {breakdownText}.</CardDescription>
           </CardHeader>
           <CardContent>
+            {weekdayHasPosts ? (
             <ColumnChart
-              ariaLabel="Average score by weekday posted over the last 90 days."
+              ariaLabel={`Average score by weekday posted over the ${breakdownText}.`}
               valueFormat="score"
               groupHeading="Day"
               valueHeading="Average score"
@@ -279,13 +308,16 @@ export default async function AccountPage({
                 details: [`${g.scored} scored of ${g.posts} post${g.posts === 1 ? "" : "s"}`],
               }))}
             />
+            ) : (
+              <EmptyState title={`No posts in the ${breakdownText}.`} />
+            )}
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <PostListCard title="Top posts" description="Highest scores in the last four weeks." posts={o.top} emphasis="max" />
-        <PostListCard title="Bottom posts" description="Lowest scores in the last four weeks." posts={o.bottom} emphasis="min" />
+        <PostListCard title="Top posts" description={`Highest scores in the ${range.text}.`} empty={`Nothing scored in the ${range.text}.`} posts={o.top} emphasis="max" />
+        <PostListCard title="Bottom posts" description={`Lowest scores in the ${range.text}.`} empty={`Nothing scored in the ${range.text}.`} posts={o.bottom} emphasis="min" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -400,11 +432,13 @@ export default async function AccountPage({
 function PostListCard({
   title,
   description,
+  empty,
   posts,
   emphasis,
 }: {
   title: string;
   description: string;
+  empty: string;
   posts: { id: string; format: string; permalink: string | null; postedAt: Date; captionExcerpt: string | null; reach: number | null; score: number | null; label: Label | null; rValues: Record<string, number> }[];
   emphasis: "max" | "min";
 }) {
@@ -422,7 +456,7 @@ function PostListCard({
             ))}
           </ul>
         ) : (
-          <EmptyState title="Nothing scored in the last four weeks." />
+          <EmptyState title={empty} />
         )}
       </CardContent>
     </Card>

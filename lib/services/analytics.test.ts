@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PostView } from "@/lib/repositories";
-import { buildAccountAnalytics, compareValues, median, summarisePeriod } from "./analytics";
+import { autoRange, buildAccountAnalytics, compareValues, median, parseRange, summarisePeriod } from "./analytics";
 
 const NOW = new Date("2026-11-22T12:00:00Z"); // a Sunday
 const DAY = 24 * 60 * 60 * 1000;
@@ -89,5 +89,32 @@ describe("compareValues", () => {
     expect(compareValues(120, 100)).toEqual({ direction: "up", relative: 0.2, absolute: 20 });
     expect(compareValues(100, 100).direction).toBe("flat");
     expect(compareValues(null, 100).relative).toBeNull();
+  });
+});
+
+describe("analytics range (D-046)", () => {
+  it("accepts only the offered ranges", () => {
+    expect(parseRange("90")).toBe(90);
+    expect(parseRange("365")).toBe(365);
+    expect(parseRange("30")).toBeNull();
+    expect(parseRange(undefined)).toBeNull();
+  });
+
+  it("opens on the shortest range that has posts", () => {
+    expect(autoRange([post(3)], NOW)).toBe(28);
+    expect(autoRange([post(60)], NOW)).toBe(90);
+    expect(autoRange([post(102)], NOW)).toBe(365);
+    expect(autoRange([post(400)], NOW)).toBe(28);
+    expect(autoRange([], NOW)).toBe(28);
+  });
+
+  it("covers a year of posts when asked, with 52 weeks of reach", () => {
+    const a = buildAccountAnalytics([post(102, { reach: 5327 }), post(105, { reach: 441 })], NOW, 365);
+    expect(a.current.posts).toBe(2);
+    expect(a.current.totalReach).toBe(5768);
+    expect(a.breakdownDays).toBe(365);
+    expect(a.weeks).toBe(52);
+    expect(a.byFormat).toHaveLength(1);
+    expect(a.weeklyReach.reduce((s, w) => s + w.reach, 0)).toBe(5768);
   });
 });

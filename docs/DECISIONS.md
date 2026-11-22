@@ -521,3 +521,16 @@ Scoring formulas, thresholds and the data model are unchanged.
 Alternatives: keep 120 days (a quiet creator never gets a baseline); re-read a full year of
 insights every run (hundreds of calls per run for a busy account); let the model compute rates
 itself (it would be re-deriving scores, which §7 forbids).
+
+## D-046 - A period switch on the account page, opening on the range that has posts
+
+With D-045 a quiet account has a year of posts, but every chart counted only the last 28 or
+90 days from today, so an account last active in August showed zeros everywhere. The account
+page now has a 28 days / 90 days / 12 months switch (`?range=`, plain links). Without a choice
+it opens on the shortest range that has any post and says so ("Nothing was posted recently, so
+this shows the last 12 months"). Tiles compare with the previous period of the same length;
+breakdowns use at least 90 days; weekly reach shows 12, 13 or 52 weeks; top and bottom posts
+follow the range. The overview cards keep 28 days.
+
+Alternatives: silently anchor "last 28 days" to the last post (mislabels the period); always
+show 12 months (hides recent change for active accounts).
