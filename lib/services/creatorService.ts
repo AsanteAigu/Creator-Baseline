@@ -16,7 +16,16 @@ import {
   type TrendPoint,
 } from "@/lib/repositories";
 import { MIN_BASELINE_POSTS, type Label, type PostFormat } from "@/lib/scoring";
-import { ANALYTICS_PERIOD_DAYS, autoRange, buildAccountAnalytics, type AnalyticsRange, summarisePeriod, within, type AccountAnalytics, type PeriodSummary } from "./analytics";
+import {
+  ANALYTICS_PERIOD_DAYS,
+  autoRange,
+  buildAccountAnalytics,
+  type AnalyticsRange,
+  summarisePeriod,
+  within,
+  type AccountAnalytics,
+  type PeriodSummary,
+} from "./analytics";
 import { topAndBottom } from "./reportService";
 import { ingestCreator, type IngestResult } from "./runService";
 import { intervalHours } from "./time";

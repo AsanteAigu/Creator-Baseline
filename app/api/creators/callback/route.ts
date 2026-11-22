@@ -3,11 +3,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/config";
 import { AppError } from "@/lib/errors";
 import { handle } from "@/lib/http";
-import {
-  OAUTH_STATE_COOKIE,
-  sameNonce,
-  verifyState,
-} from "@/lib/instagram/crypto";
+import { OAUTH_STATE_COOKIE, sameNonce, verifyState } from "@/lib/instagram/crypto";
 import { createInstagramSource } from "@/lib/instagram/factory";
 import { InstagramError } from "@/lib/instagram/types";
 import { stateKey } from "@/lib/instagram/keys";
@@ -60,7 +56,8 @@ export const GET = handle(async (req: Request) => {
   } catch (err) {
     // Class of failure only: messages can carry API detail, never a token.
     // InstagramError messages are written to be shown to clients and never carry a token.
-    const detail = err instanceof InstagramError ? `${err.code}: ${err.message}` : err instanceof Error ? err.name : "unknown";
+    const detail =
+      err instanceof InstagramError ? `${err.code}: ${err.message}` : err instanceof Error ? err.name : "unknown";
     console.error(`[oauth] connection failed: ${detail}`);
     const reason =
       err instanceof AppError && err.code === "CONFLICT"

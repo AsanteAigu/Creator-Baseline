@@ -61,9 +61,7 @@ describe("token encryption", () => {
     const enc = encryptToken("token", KEY);
     const bytes = Buffer.from(enc.ciphertext, "base64");
     bytes[0] = (bytes[0] ?? 0) ^ 1;
-    expect(() => decryptToken({ ...enc, ciphertext: bytes.toString("base64") }, KEY)).toThrow(
-      /could not be decrypted/,
-    );
+    expect(() => decryptToken({ ...enc, ciphertext: bytes.toString("base64") }, KEY)).toThrow(/could not be decrypted/);
   });
 
   it("rejects malformed stored material", () => {

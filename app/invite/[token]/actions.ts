@@ -30,7 +30,8 @@ export async function acceptInviteAction(_prev: InviteState, form: FormData): Pr
     password: form.get("password") ?? undefined,
     confirm: form.get("confirm") ?? undefined,
   });
-  if (!parsed.success) return { error: "This invite link looks incomplete. Open it again from the message you were sent." };
+  if (!parsed.success)
+    return { error: "This invite link looks incomplete. Open it again from the message you were sent." };
   const { token, password, confirm } = parsed.data;
 
   try {
@@ -51,7 +52,9 @@ export async function acceptInviteAction(_prev: InviteState, form: FormData): Pr
   const current = await getSessionUser();
   if (current) {
     if (current.email?.toLowerCase() !== email) {
-      return { error: `You're signed in as ${current.email ?? "another account"}. Sign out, then open this link again.` };
+      return {
+        error: `You're signed in as ${current.email ?? "another account"}. Sign out, then open this link again.`,
+      };
     }
     userId = current.id;
   } else {
@@ -74,7 +77,9 @@ export async function acceptInviteAction(_prev: InviteState, form: FormData): Pr
           "Your account needs email confirmation before it can be used. Ask your agency admin to switch off email confirmation in Supabase, then try again.",
       };
     } else {
-      return { error: `That password wasn't accepted. Use at least ${MIN_PASSWORD} characters, mixing letters and numbers.` };
+      return {
+        error: `That password wasn't accepted. Use at least ${MIN_PASSWORD} characters, mixing letters and numbers.`,
+      };
     }
   }
   if (userId === null) return { error: "Something went wrong. Please try again." };

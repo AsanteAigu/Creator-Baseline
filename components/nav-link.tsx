@@ -33,7 +33,10 @@ export function NavLink({
             ? "bg-muted text-foreground before:absolute before:-left-4 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-r-full before:bg-primary"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"),
         variant === "top" && "min-w-11 justify-center gap-1.5 rounded-full px-3.5",
-        variant === "top" && (active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"),
+        variant === "top" &&
+          (active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"),
       )}
     >
       {children}

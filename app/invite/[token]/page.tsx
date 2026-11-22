@@ -34,7 +34,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <CardDescription>
           {invite.status === "used" ? (
             <>
-              If it was you, <Link href="/login" className="underline">sign in</Link>. Otherwise ask for a new link.
+              If it was you,{" "}
+              <Link href="/login" className="underline">
+                sign in
+              </Link>
+              . Otherwise ask for a new link.
             </>
           ) : (
             "Ask the person who invited you for a new link."

@@ -32,9 +32,7 @@ const account = (token: string, igUserId = IG_USER_ID): ConnectedAccount => ({
 });
 
 /** Only refreshToken is exercised here; other calls would be a bug in the code under test. */
-function fakeSource(
-  refresh: (token: string) => Promise<{ token: string; expiresAt: Date }>,
-): InstagramSource {
+function fakeSource(refresh: (token: string) => Promise<{ token: string; expiresAt: Date }>): InstagramSource {
   const unused = (): never => {
     throw new Error("not used by this test");
   };
@@ -133,15 +131,17 @@ describe("completing a connection", () => {
     creatorId = result.creatorId;
     expect(creatorId).toMatch(/^[0-9a-f-]{36}$/);
 
-    const [row] = await sql<{
-      workspace_id: string;
-      ig_user_id: string;
-      username: string;
-      display_name: string | null;
-      status: string;
-      access_token_ciphertext: string;
-      token_expires_at: Date;
-    }[]>`
+    const [row] = await sql<
+      {
+        workspace_id: string;
+        ig_user_id: string;
+        username: string;
+        display_name: string | null;
+        status: string;
+        access_token_ciphertext: string;
+        token_expires_at: Date;
+      }[]
+    >`
       select workspace_id, ig_user_id, username, display_name, status,
              access_token_ciphertext, token_expires_at
       from creators where id = ${creatorId}

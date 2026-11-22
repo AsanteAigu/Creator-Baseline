@@ -27,9 +27,7 @@ ${THEMES_EXAMPLE_OUTPUT}`;
 
 /** Per-request data. Comments must already be sanitised (lib/services/commentSample.ts). */
 export function buildUserMessage(comments: readonly string[]): string {
-  const body = comments
-    .map((text, i) => `<comment id="${i + 1}">${escapeTags(text)}</comment>`)
-    .join("\n");
+  const body = comments.map((text, i) => `<comment id="${i + 1}">${escapeTags(text)}</comment>`).join("\n");
   return `Analyse these ${comments.length} comments.\n<comments>\n${body}\n</comments>`;
 }
 

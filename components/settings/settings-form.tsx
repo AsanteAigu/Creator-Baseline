@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { SIGNAL_LABELS } from "@/lib/format";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 export interface SettingsValues {
   weights: Record<"watch_time" | "sends" | "saves" | "likes" | "comments", number>;
@@ -98,7 +98,9 @@ export function SettingsForm({ initial, canEdit }: { initial: SettingsValues; ca
   return (
     <form onSubmit={save} className="flex flex-col gap-4" noValidate>
       {!canEdit ? (
-        <p className="text-sm text-muted-foreground">You can view these settings. Only owners and admins can change them.</p>
+        <p className="text-sm text-muted-foreground">
+          You can view these settings. Only owners and admins can change them.
+        </p>
       ) : null}
 
       <Card>
@@ -127,7 +129,9 @@ export function SettingsForm({ initial, canEdit }: { initial: SettingsValues; ca
       <Card>
         <CardHeader>
           <CardTitle>Photo and carousel weights</CardTitle>
-          <CardDescription>No watch time for these formats. Must add up to 1. Currently {photoSum.toFixed(2)}.</CardDescription>
+          <CardDescription>
+            No watch time for these formats. Must add up to 1. Currently {photoSum.toFixed(2)}.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(Object.keys(values.photoWeights) as (keyof SettingsValues["photoWeights"])[]).map((k) => (
@@ -150,16 +154,52 @@ export function SettingsForm({ initial, canEdit }: { initial: SettingsValues; ca
           <CardTitle>Labels and limits</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <NumberField id="strong" label="Strong above" value={values.strongCutoff} step={0.05} disabled={disabled} error={fields.strongCutoff}
-            onChange={(v) => setValues((s) => ({ ...s, strongCutoff: v }))} />
-          <NumberField id="weak" label="Weak below" value={values.weakCutoff} step={0.05} disabled={disabled} error={fields.weakCutoff}
-            onChange={(v) => setValues((s) => ({ ...s, weakCutoff: v }))} />
-          <NumberField id="cap" label="Cap per signal" value={values.cap} step={0.5} disabled={disabled} error={fields.cap}
-            hint="Stops one viral number from dominating." onChange={(v) => setValues((s) => ({ ...s, cap: v }))} />
-          <NumberField id="age" label="Wait before scoring (hours)" value={values.minAgeHours} step={1} disabled={disabled}
-            error={fields.minAgeHours} onChange={(v) => setValues((s) => ({ ...s, minAgeHours: v }))} />
-          <NumberField id="window" label="Posts in the usual (median)" value={values.medianWindow} step={1} disabled={disabled}
-            error={fields.medianWindow} onChange={(v) => setValues((s) => ({ ...s, medianWindow: v }))} />
+          <NumberField
+            id="strong"
+            label="Strong above"
+            value={values.strongCutoff}
+            step={0.05}
+            disabled={disabled}
+            error={fields.strongCutoff}
+            onChange={(v) => setValues((s) => ({ ...s, strongCutoff: v }))}
+          />
+          <NumberField
+            id="weak"
+            label="Weak below"
+            value={values.weakCutoff}
+            step={0.05}
+            disabled={disabled}
+            error={fields.weakCutoff}
+            onChange={(v) => setValues((s) => ({ ...s, weakCutoff: v }))}
+          />
+          <NumberField
+            id="cap"
+            label="Cap per signal"
+            value={values.cap}
+            step={0.5}
+            disabled={disabled}
+            error={fields.cap}
+            hint="Stops one viral number from dominating."
+            onChange={(v) => setValues((s) => ({ ...s, cap: v }))}
+          />
+          <NumberField
+            id="age"
+            label="Wait before scoring (hours)"
+            value={values.minAgeHours}
+            step={1}
+            disabled={disabled}
+            error={fields.minAgeHours}
+            onChange={(v) => setValues((s) => ({ ...s, minAgeHours: v }))}
+          />
+          <NumberField
+            id="window"
+            label="Posts in the usual (median)"
+            value={values.medianWindow}
+            step={1}
+            disabled={disabled}
+            error={fields.medianWindow}
+            onChange={(v) => setValues((s) => ({ ...s, medianWindow: v }))}
+          />
         </CardContent>
       </Card>
 
@@ -184,9 +224,16 @@ export function SettingsForm({ initial, canEdit }: { initial: SettingsValues; ca
               ))}
             </select>
           </div>
-          <NumberField id="budget" label="Monthly AI budget (USD)" value={values.aiMonthlyBudgetUsd} step={5} disabled={disabled}
-            error={fields.aiMonthlyBudgetUsd} hint="AI summaries pause when this is reached; scores keep updating."
-            onChange={(v) => setValues((s) => ({ ...s, aiMonthlyBudgetUsd: v }))} />
+          <NumberField
+            id="budget"
+            label="Monthly AI budget (USD)"
+            value={values.aiMonthlyBudgetUsd}
+            step={5}
+            disabled={disabled}
+            error={fields.aiMonthlyBudgetUsd}
+            hint="AI summaries pause when this is reached; scores keep updating."
+            onChange={(v) => setValues((s) => ({ ...s, aiMonthlyBudgetUsd: v }))}
+          />
         </CardContent>
       </Card>
 

@@ -34,7 +34,7 @@ export interface RawInsights {
 
 /**
  * Exists only in memory for the duration of one run. Never persisted, never logged
- * (BUILD_PROMPT §4/§11): comments are reduced to aggregates before anything is stored.
+ * (SPECIFICATION §4/§11): comments are reduced to aggregates before anything is stored.
  */
 export interface RawComment {
   text: string;

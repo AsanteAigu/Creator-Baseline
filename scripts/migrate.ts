@@ -58,9 +58,7 @@ async function main(): Promise<void> {
 
     const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
     const applied = new Set(
-      (await sql<{ version: string }[]>`select version from app_meta.schema_migrations`).map(
-        (r) => r.version,
-      ),
+      (await sql<{ version: string }[]>`select version from app_meta.schema_migrations`).map((r) => r.version),
     );
 
     let count = 0;

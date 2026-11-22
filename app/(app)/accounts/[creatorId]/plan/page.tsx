@@ -3,8 +3,8 @@ import { AiDisclaimer } from "@/components/ai-disclaimer";
 import { Banner } from "@/components/banner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { RegeneratePlanButton } from "@/components/regenerate-plan-button";
-import { SuggestionToggle } from "@/components/suggestion-toggle";
+import { RegeneratePlanButton } from "@/components/plan/regenerate-plan-button";
+import { SuggestionToggle } from "@/components/plan/suggestion-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
@@ -57,12 +57,16 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
 
       {!plan ? (
         <EmptyState title="No plan for this week yet.">
-          {canRegenerate ? "Create one now, or it will be written after the next update." : "It will be written after the next update."}
+          {canRegenerate
+            ? "Create one now, or it will be written after the next update."
+            : "It will be written after the next update."}
         </EmptyState>
       ) : (
         <>
           <section className="surface-gradient flex flex-col gap-3 rounded-xl border border-white/60 p-6 shadow-card sm:p-7">
-            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground/60">This week&apos;s focus</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground/60">
+              This week&apos;s focus
+            </p>
             <p className="max-w-3xl font-display text-lg leading-snug tracking-tight sm:text-xl">{plan.summary}</p>
             <AiDisclaimer />
           </section>
@@ -87,7 +91,11 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
                     <p className="mt-1 text-xs text-muted-foreground">Nothing planned</p>
                   ) : (
                     ideas.map((s) => (
-                      <a key={s.id} href={`#idea-${s.id}`} className="mt-2 block rounded-md bg-muted px-2 py-1.5 text-xs font-medium leading-snug hover:bg-primary hover:text-primary-foreground">
+                      <a
+                        key={s.id}
+                        href={`#idea-${s.id}`}
+                        className="mt-2 block rounded-md bg-muted px-2 py-1.5 text-xs font-medium leading-snug hover:bg-primary hover:text-primary-foreground"
+                      >
                         {s.title}
                       </a>
                     ))
@@ -110,7 +118,9 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-3">
                     {s.hook ? (
-                      <p className="border-l-2 border-accent/40 pl-3 text-sm italic text-foreground/85">&ldquo;{s.hook}&rdquo;</p>
+                      <p className="border-l-2 border-accent/40 pl-3 text-sm italic text-foreground/85">
+                        &ldquo;{s.hook}&rdquo;
+                      </p>
                     ) : null}
                     {s.reason ? <p className="text-sm text-muted-foreground">{s.reason}</p> : null}
                     {s.dataRef ? <p className="text-xs text-muted-foreground">Based on: {s.dataRef}</p> : null}

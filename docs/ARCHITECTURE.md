@@ -1,7 +1,8 @@
 # Architecture
 
-Status: Phases 0-6 built (schema, scoring, mock + Graph ingestion, AI layer, dashboard,
-OAuth, scheduler/purge hardening and deploy docs).
+How Creator Baseline v1 is put together: layers, data model, security model, pipeline, jobs
+and integrations. The build specification is [`SPECIFICATION.md`](SPECIFICATION.md); every
+judgement call is in [`DECISIONS.md`](DECISIONS.md).
 
 ## Overview
 
@@ -35,7 +36,7 @@ OAuth, scheduler/purge hardening and deploy docs).
 | `lib/services/` | business rules, orchestration | import `postgres`, `@supabase/*`, `next/*` |
 | `lib/repositories/` | SQL, row ↔ domain mapping | contain business rules |
 | `lib/scoring/` | numbers | import anything except relative types |
-| `lib/ai/` | Anthropic SDK (only `client.ts`), Zod schemas, cost ledger | be called per post or per comment |
+| `lib/ai/` | provider clients (Gemini, Anthropic SDK only in `client.ts`, mock), Zod schemas, cost ledger | be called per post or per comment |
 | `lib/instagram/` | Graph API transport, metric mapping | leak tokens into logs or responses |
 | `components/` | rendering | import repositories, decide labels |
 
@@ -44,10 +45,12 @@ Import direction: `app → services → repositories → db`. These rules are en
 
 ## Data model
 
-Defined in `supabase/migrations/20261113000100_initial_schema.sql`. Summary:
+Defined in `supabase/migrations/` (initial schema, then the audit policy and the creator role
+with invites). Summary:
 
 ```
-workspaces ─┬─ workspace_members (user ↔ workspace, role owner|admin|viewer)
+workspaces ─┬─ workspace_members (user ↔ workspace, role owner|admin|viewer|creator)
+            ├─ workspace_invites (single-use invite links)
             ├─ scoring_settings (1:1; weights, cutoffs, cap, window, schedule, AI budget)
             ├─ ai_calls, audit_log, deletion_requests
             └─ creators ─┬─ runs ─┬─ post_metrics (append-only snapshot per post per run)
@@ -94,8 +97,8 @@ is deliberately not a foreign key so the record of a purge survives the purge.
 ## Environment
 
 `lib/config.ts` parses env with Zod, lazily (so `next build` needs no secrets) and reports
-variable *names* only on failure. Cross-field rules: `AI_PROVIDER=anthropic` requires
-`ANTHROPIC_API_KEY`; `INSTAGRAM_SOURCE=graph` requires the Instagram app credentials and a
+variable *names* only on failure. Cross-field rules: `AI_PROVIDER=gemini` requires
+`GEMINI_API_KEY` and `AI_PROVIDER=anthropic` requires `ANTHROPIC_API_KEY`; `INSTAGRAM_SOURCE=graph` requires the Instagram app credentials and a
 32-byte `TOKEN_ENCRYPTION_KEY`; production requires Supabase, Upstash and Inngest keys.
 
 ## Local development without Docker
@@ -159,14 +162,19 @@ Graph client keeps one request in flight, times each out, retries 429/5xx with e
 backoff and paces itself from Meta's usage headers. Tokens travel in the `Authorization`
 header; no URL, header or response body is logged.
 
-Logins: `/api/creators/connect` sets a signed, HTTP-only state cookie and redirects to
-Facebook Login for Business; `/api/creators/callback` checks the nonce, exchanges the code
-server-side for a long-lived user token, finds the Instagram professional account behind the
-Facebook Page and stores the token AES-256-GCM encrypted (`access_token_ciphertext`,
-`token_iv`, `token_expires_at`). Reconnects carry the creator id in the signed state and
-must match the same Instagram account (D-029). Tokens are refreshed inside the last seven
-days of their ~60-day life at the start of a run (D-027). An auth failure sets
-`creators.status = needs_reauth`; the dashboard shows a banner with a Reconnect action.
+Logins: `/api/creators/connect` sets a signed, HTTP-only state cookie and redirects to Meta.
+`INSTAGRAM_LOGIN_TYPE` picks the flow: `unified` (the default, and the only one Meta offers
+apps created from late 2026; D-038), `instagram` (Instagram Login, older apps) or `facebook`
+(Facebook Login for Business through a Page). `/api/creators/callback` checks the nonce and
+exchanges the code server-side. With Unified Login the result is a business-portfolio token;
+`/me/assigned_instagram_accounts` lists every account the login shared, and each new one is
+stored as its own creator with the token encrypted separately (D-044). Tokens are stored
+AES-256-GCM encrypted (`access_token_ciphertext`, `token_iv`, `token_expires_at`).
+
+Reconnects carry the creator id in the signed state and must match the same Instagram account
+(D-029). Expiring tokens are refreshed inside the last seven days of their life at the start
+of a run (D-027); Unified Login tokens do not expire. An auth failure sets
+`creators.status = needs_reauth`; the account page shows a banner with a Reconnect action.
 
 The watch-time signal, insight availability and the interface shape differ from §5/§6 in
 three deliberate ways; see D-024 to D-026.
@@ -177,3 +185,16 @@ three deliberate ways; see D-024 to D-026.
 in development). Services then open a *user scope* transaction (`SET LOCAL ROLE
 authenticated` + JWT claims) so Postgres RLS decides what the user can see or change.
 Background work uses *system scope*. See DECISIONS D-015 and D-020.
+
+Roles: `owner` and `admin` manage accounts, settings and members; `viewer` reads everything
+in the workspace; `creator` joins through an invite link, connects their own Instagram once
+and can only ever see that account (D-040, enforced by `can_access_creator`).
+
+## AI layer
+
+`lib/ai/provider.ts` defines one interface; `factory.ts` picks Gemini, Anthropic or the mock
+from `AI_PROVIDER`. Every call goes through `generateStructured()` (`structured.ts`), which
+validates the reply against a Zod schema, retries invalid output once, and records tokens and
+cost in `ai_calls`. A monthly per-workspace budget pauses AI work when reached. Prompts live
+in `prompts/` with a version string each and are snapshot-tested; the report and plan prompts
+receive every post in the period with raw counts and must cite real posts and numbers (D-045).

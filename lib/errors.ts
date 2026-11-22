@@ -38,5 +38,4 @@ export class AppError extends Error {
 }
 
 export const notFound = (what = "That item") => new AppError("NOT_FOUND", `${what} was not found.`);
-export const forbidden = (message = "You don't have permission to do that.") =>
-  new AppError("FORBIDDEN", message);
+export const forbidden = (message = "You don't have permission to do that.") => new AppError("FORBIDDEN", message);

@@ -59,7 +59,10 @@ function readValue(entry: GraphInsightEntry): number | null {
  * Maps a `/{media-id}/insights` response to our fields. Throws when a metric we asked for is
  * missing: storing 0 would silently pull the creator's baseline down (§6).
  */
-export function mapInsights(media: Pick<RawMedia, "id" | "mediaProductType">, data: readonly GraphInsightEntry[]): RawInsights {
+export function mapInsights(
+  media: Pick<RawMedia, "id" | "mediaProductType">,
+  data: readonly GraphInsightEntry[],
+): RawInsights {
   const byName = new Map(data.map((e) => [e.name, readValue(e)]));
   const get = (name: string): number => {
     const v = byName.get(name);

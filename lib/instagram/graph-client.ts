@@ -1,7 +1,7 @@
 import { InstagramError } from "./types";
 
 /**
- * Thin HTTP layer for the Graph API (BUILD_PROMPT §6): one request at a time, a timeout on
+ * Thin HTTP layer for the Graph API (SPECIFICATION §6): one request at a time, a timeout on
  * each, exponential backoff for 429/5xx/network failures, and pacing driven by Meta's own
  * usage headers. Tokens travel in the Authorization header, never in a URL we build, and no
  * URL, header or response body is ever logged.
@@ -12,11 +12,7 @@ export const GRAPH_HOST = "https://graph.facebook.com";
 export const INSTAGRAM_GRAPH_HOST = "https://graph.instagram.com";
 export const INSTAGRAM_API_HOST = "https://api.instagram.com";
 
-const ALLOWED_HOSTS = new Set([
-  GRAPH_HOST,
-  INSTAGRAM_GRAPH_HOST,
-  INSTAGRAM_API_HOST,
-]);
+const ALLOWED_HOSTS = new Set([GRAPH_HOST, INSTAGRAM_GRAPH_HOST, INSTAGRAM_API_HOST]);
 
 /** Meta throttling codes: app (4), user (17), page (32), custom (613), Instagram BUC (80002). */
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613, 80002]);
@@ -181,7 +177,11 @@ export class GraphClient {
     if (res.status >= 500 || (code !== null && TRANSIENT_CODES.has(code))) {
       throw new InstagramError("Instagram had a temporary problem.", "UNAVAILABLE", true);
     }
-    throw new InstagramError(`Instagram refused the request (HTTP ${res.status}, code ${code ?? "none"}).`, "PERMANENT", false);
+    throw new InstagramError(
+      `Instagram refused the request (HTTP ${res.status}, code ${code ?? "none"}).`,
+      "PERMANENT",
+      false,
+    );
   }
 
   /** Reads X-App-Usage and X-Business-Use-Case-Usage; either may be absent. */

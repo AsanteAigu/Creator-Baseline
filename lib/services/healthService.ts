@@ -52,8 +52,7 @@ export async function getHealth(userId: string): Promise<HealthReport> {
   }));
 
   const degraded =
-    creators.some((c) => c.status === "needs_reauth") ||
-    creators.some((c) => c.lastRun?.status === "failed");
+    creators.some((c) => c.status === "needs_reauth") || creators.some((c) => c.lastRun?.status === "failed");
 
   return {
     status: degraded ? "degraded" : "ok",

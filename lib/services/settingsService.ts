@@ -8,7 +8,8 @@ export const SCHEDULE_INTERVALS = ["1 hour", "3 hours", "6 hours", "12 hours", "
 const weight = z.number().min(0).max(1);
 const SUM_TOLERANCE = 0.001;
 
-const sumsToOne = (w: Record<string, number>) => Math.abs(Object.values(w).reduce((a, b) => a + b, 0) - 1) <= SUM_TOLERANCE;
+const sumsToOne = (w: Record<string, number>) =>
+  Math.abs(Object.values(w).reduce((a, b) => a + b, 0) - 1) <= SUM_TOLERANCE;
 
 /** Validated at the boundary; the DB constraints are the second line of defence. */
 export const settingsPatchSchema = z

@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 export function RegeneratePlanButton({ creatorId, label = "Refresh ideas" }: { creatorId: string; label?: string }) {
   const router = useRouter();

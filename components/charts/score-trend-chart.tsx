@@ -29,10 +29,14 @@ function Marker({ label, cx, cy, active }: { label: Label; cx: number; cy: numbe
   const ring = { stroke: "var(--card)", strokeWidth: 2 };
   const fill = COLOURS[label] ?? "var(--status-neutral)";
   if (label === "strong") {
-    return <path d={`M${cx},${cy - s} L${cx + s},${cy + s * 0.8} L${cx - s},${cy + s * 0.8} Z`} fill={fill} {...ring} />;
+    return (
+      <path d={`M${cx},${cy - s} L${cx + s},${cy + s * 0.8} L${cx - s},${cy + s * 0.8} Z`} fill={fill} {...ring} />
+    );
   }
   if (label === "weak") {
-    return <path d={`M${cx},${cy + s} L${cx + s},${cy - s * 0.8} L${cx - s},${cy - s * 0.8} Z`} fill={fill} {...ring} />;
+    return (
+      <path d={`M${cx},${cy + s} L${cx + s},${cy - s * 0.8} L${cx - s},${cy - s * 0.8} Z`} fill={fill} {...ring} />
+    );
   }
   return <circle cx={cx} cy={cy} r={s * 0.8} fill={fill} {...ring} />;
 }
@@ -67,7 +71,9 @@ export function ScoreTrendChart({
 
   // Roughly one date label per 110px, always including both ends.
   const labelCount = Math.max(2, Math.min(data.length, Math.floor(innerW / 110)));
-  const dateIdx = Array.from(new Set(Array.from({ length: labelCount }, (_, k) => Math.round((k * (data.length - 1)) / (labelCount - 1)))));
+  const dateIdx = Array.from(
+    new Set(Array.from({ length: labelCount }, (_, k) => Math.round((k * (data.length - 1)) / (labelCount - 1)))),
+  );
 
   function onPointer(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -105,16 +111,43 @@ export function ScoreTrendChart({
             onBlur={() => setActive(null)}
           >
             {/* The normal range: between the weak and strong cutoffs. */}
-            <rect x={M.left} width={innerW} y={y(strongCutoff)} height={y(weakCutoff) - y(strongCutoff)} fill="var(--chart-band)" />
+            <rect
+              x={M.left}
+              width={innerW}
+              y={y(strongCutoff)}
+              height={y(weakCutoff) - y(strongCutoff)}
+              fill="var(--chart-band)"
+            />
             {ticks.map((t) => (
               <g key={t}>
-                <line x1={M.left} x2={width - M.right} y1={y(t)} y2={y(t)} stroke={t === 0 ? "var(--chart-axis)" : "var(--chart-grid)"} />
-                <text x={M.left - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} fill="var(--chart-muted)" className="tabular-nums">
+                <line
+                  x1={M.left}
+                  x2={width - M.right}
+                  y1={y(t)}
+                  y2={y(t)}
+                  stroke={t === 0 ? "var(--chart-axis)" : "var(--chart-grid)"}
+                />
+                <text
+                  x={M.left - 8}
+                  y={y(t)}
+                  dy="0.32em"
+                  textAnchor="end"
+                  fontSize={11}
+                  fill="var(--chart-muted)"
+                  className="tabular-nums"
+                >
                   {t.toFixed(1)}
                 </text>
               </g>
             ))}
-            <line x1={M.left} x2={width - M.right} y1={y(1)} y2={y(1)} stroke="var(--chart-muted)" strokeDasharray="3 3" />
+            <line
+              x1={M.left}
+              x2={width - M.right}
+              y1={y(1)}
+              y2={y(1)}
+              stroke="var(--chart-muted)"
+              strokeDasharray="3 3"
+            />
             {dateIdx.map((i) => (
               <text
                 key={i}
@@ -128,7 +161,14 @@ export function ScoreTrendChart({
               </text>
             ))}
 
-            <path d={path} fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path
+              d={path}
+              fill="none"
+              stroke="var(--chart-1)"
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
             {active !== null ? (
               <line x1={x(active)} x2={x(active)} y1={M.top} y2={M.top + innerH} stroke="var(--chart-axis)" />
             ) : null}
@@ -146,7 +186,8 @@ export function ScoreTrendChart({
           >
             <p className="text-base font-semibold tabular-nums text-foreground">{formatScore(current.score)}</p>
             <p className="text-muted-foreground">
-              {LEGEND.find((l) => l.label === current.label)?.text ?? "Normal"} · {FORMAT_LABELS[current.format] ?? current.format}
+              {LEGEND.find((l) => l.label === current.label)?.text ?? "Normal"} ·{" "}
+              {FORMAT_LABELS[current.format] ?? current.format}
             </p>
             <p className="text-muted-foreground">{current.dateLabel}</p>
           </div>
@@ -169,13 +210,18 @@ export function ScoreTrendChart({
           1.00 is this creator&apos;s usual post
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="h-3 w-4 rounded-sm bg-[var(--chart-band)] ring-1 ring-inset ring-[var(--chart-grid)]" />
+          <span
+            aria-hidden
+            className="h-3 w-4 rounded-sm bg-[var(--chart-band)] ring-1 ring-inset ring-[var(--chart-grid)]"
+          />
           Normal range, {formatScore(weakCutoff)} to {formatScore(strongCutoff)}
         </span>
       </figcaption>
 
       <details className="text-sm">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-medium text-muted-foreground hover:text-foreground">View as table</summary>
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-medium text-muted-foreground hover:text-foreground">
+          View as table
+        </summary>
         <div className="max-h-64 overflow-auto">
           <table id={tableId} className="w-full text-left text-xs">
             <thead className="text-muted-foreground">

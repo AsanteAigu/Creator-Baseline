@@ -1,5 +1,5 @@
 /**
- * BUILD_PROMPT §11 / acceptance criterion 9: no secret may reach the client bundle.
+ * SPECIFICATION §11 / acceptance criterion 9: no secret may reach the client bundle.
  *
  * Scans `.next/static` for the names of server-only variables *and* for their values when
  * they are present in this environment. Run after `pnpm build` (CI: build then this).
@@ -45,8 +45,9 @@ async function main(): Promise<void> {
   }
 
   // Only values long enough to be meaningful; an empty or placeholder value is not a leak.
-  const secretValues = SECRET_NAMES.map((name) => process.env[name])
-    .filter((value): value is string => typeof value === "string" && value.length >= 12);
+  const secretValues = SECRET_NAMES.map((name) => process.env[name]).filter(
+    (value): value is string => typeof value === "string" && value.length >= 12,
+  );
 
   const problems: string[] = [];
   for (const file of files) {

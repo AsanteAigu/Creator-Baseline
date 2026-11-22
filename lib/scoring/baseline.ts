@@ -33,9 +33,7 @@ export function computeBaseline(posts: readonly ScorablePost[], opts: BaselineOp
 
   const medians = {} as Record<Signal, number | null>;
   for (const signal of SIGNALS) {
-    medians[signal] = median(
-      window.map((e) => e.rates[signal]).filter((v): v is number => v !== null),
-    );
+    medians[signal] = median(window.map((e) => e.rates[signal]).filter((v): v is number => v !== null));
   }
 
   return {

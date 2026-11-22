@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * One E2E path (BUILD_PROMPT §12). Expects a seeded, ingested database (`pnpm db:reset`)
+ * One E2E path (SPECIFICATION §12). Expects a seeded, ingested database (`pnpm db:reset`)
  * and runs against the dev server, starting one if none is running.
  */
 export default defineConfig({

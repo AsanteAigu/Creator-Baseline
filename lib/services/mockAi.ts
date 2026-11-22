@@ -38,12 +38,42 @@ function describe(post: ReportPostInput): string {
   return `the ${day(post.postedOn)} ${formatWord(post.format)} ("${post.caption.slice(0, 50)}")`;
 }
 
-const THEME_RULES: { label: string; sentiment: ThemesOutput["themes"][number]["sentiment"]; test: RegExp; paraphrase: string }[] = [
-  { label: "Requests for new versions", sentiment: "neutral", test: /\b(can you|could you|please|version|do a)\b/i, paraphrase: "Viewers are asking for variations and follow-up content." },
-  { label: "Questions about products", sentiment: "neutral", test: /\b(where|what brand|which|link|how much)\b/i, paraphrase: "People want to know where items come from and what they cost." },
-  { label: "Praise and thanks", sentiment: "positive", test: /\b(love|helpful|perfect|unreal|clearly|so good|seconds|follow you)\b/i, paraphrase: "Followers say the content is useful and they enjoy it." },
-  { label: "Tried it themselves", sentiment: "positive", test: /\b(made this|did this|tried it|tonight|today)\b/i, paraphrase: "Some viewers report trying the idea straight away." },
-  { label: "Criticism and concerns", sentiment: "negative", test: /\b(not a fan|too|hurt|not for me|tiny|sorry)\b/i, paraphrase: "A minority found something off-putting or unsuitable for them." },
+const THEME_RULES: {
+  label: string;
+  sentiment: ThemesOutput["themes"][number]["sentiment"];
+  test: RegExp;
+  paraphrase: string;
+}[] = [
+  {
+    label: "Requests for new versions",
+    sentiment: "neutral",
+    test: /\b(can you|could you|please|version|do a)\b/i,
+    paraphrase: "Viewers are asking for variations and follow-up content.",
+  },
+  {
+    label: "Questions about products",
+    sentiment: "neutral",
+    test: /\b(where|what brand|which|link|how much)\b/i,
+    paraphrase: "People want to know where items come from and what they cost.",
+  },
+  {
+    label: "Praise and thanks",
+    sentiment: "positive",
+    test: /\b(love|helpful|perfect|unreal|clearly|so good|seconds|follow you)\b/i,
+    paraphrase: "Followers say the content is useful and they enjoy it.",
+  },
+  {
+    label: "Tried it themselves",
+    sentiment: "positive",
+    test: /\b(made this|did this|tried it|tonight|today)\b/i,
+    paraphrase: "Some viewers report trying the idea straight away.",
+  },
+  {
+    label: "Criticism and concerns",
+    sentiment: "negative",
+    test: /\b(not a fan|too|hurt|not for me|tiny|sorry)\b/i,
+    paraphrase: "A minority found something off-putting or unsuitable for them.",
+  },
 ];
 
 export function mockThemes(comments: readonly string[]): ThemesOutput {
@@ -86,7 +116,8 @@ export function mockReport(input: ReportInput): ReportOutput {
     headline: best
       ? `${capitalise(formatWord(best.format))}s are leading this period; the best scored ${best.score.toFixed(2)}.`
       : "Not enough scored posts yet to call a trend.",
-    what_working: working.length > 0 ? working : [{ point: "Too early to say.", evidence: "No posts have been scored yet." }],
+    what_working:
+      working.length > 0 ? working : [{ point: "Too early to say.", evidence: "No posts have been scored yet." }],
     what_not_working:
       notWorking.length > 0 ? notWorking : [{ point: "Too early to say.", evidence: "No posts have been scored yet." }],
   };
@@ -127,7 +158,9 @@ export function mockPlan(input: PlanInput): PlanOutput {
     const [signal, r] = src ? extremeSignal(src, "max") : ["likes", 1];
     const strong = src ? src.score >= 1 : true;
     return {
-      title: src ? `${strong ? "Follow-up to" : "New angle on"} "${src.caption.slice(0, 60)}"` : "Audience favourite, refreshed",
+      title: src
+        ? `${strong ? "Follow-up to" : "New angle on"} "${src.caption.slice(0, 60)}"`
+        : "Audience favourite, refreshed",
       format: (src?.format ?? "reel") as PlanOutput["ideas"][number]["format"],
       hook: HOOKS[i % HOOKS.length]!,
       reason: src
@@ -135,7 +168,9 @@ export function mockPlan(input: PlanInput): PlanOutput {
           ? `Its ${SIGNAL_NAMES[signal] ?? signal} ran at ${r.toFixed(1)}x usual; a follow-up builds on that.`
           : `The topic has potential but this ${formatWord(src.format)} underperformed; try a different opening.`
         : "No scored posts yet, so this starts from the creator's core topic.",
-      data_ref: src ? `${capitalise(formatWord(src.format))}, ${day(src.postedOn)}, score ${src.score.toFixed(2)}` : "No scored posts yet",
+      data_ref: src
+        ? `${capitalise(formatWord(src.format))}, ${day(src.postedOn)}, score ${src.score.toFixed(2)}`
+        : "No scored posts yet",
       suggested_date: date,
     };
   });

@@ -3,7 +3,7 @@
 Creator Baseline v1: scores each Instagram creator's posts against their own historical
 baseline, summarises comment themes, and drafts a weekly content plan.
 
-- **How to build:** `BUILD_PROMPT.md` (architecture, scoring spec, build order). It wins on architecture.
+- **How to build:** `docs/SPECIFICATION.md` (architecture, scoring spec, build order). It wins on architecture.
 - **What to build:** `docs/requirements.md`. It wins on behaviour. Log conflicts in `docs/DECISIONS.md`.
 - **Next.js 16:** read `AGENTS.md` and `node_modules/next/dist/docs/` before using a Next API.
 
@@ -46,7 +46,7 @@ ESLint enforces these boundaries (`eslint.config.mjs`). Don't silence the rule; 
 - `numeric` for rates and scores, never float. Store 4 dp, display 2 dp, never round before summing.
 - No `any`, no `TODO`, no stub that silently returns empty. Out of scope means left out.
 - No new dependency without a one-line justification in the phase report.
-- Ask before changing the data model (BUILD_PROMPT §4) or formulas (§5) once Phase 1 is green.
+- Ask before changing the data model (SPECIFICATION §4) or formulas (§5) once Phase 1 is green.
 
 ## Conventions
 
@@ -59,7 +59,7 @@ ESLint enforces these boundaries (`eslint.config.mjs`). Don't silence the rule; 
 
 ## Workflow
 
-- Work one phase at a time (BUILD_PROMPT §13). Stop and report at the end of each phase.
+- Work one phase at a time (SPECIFICATION §13). Stop and report at the end of each phase.
 - A phase is done only when typecheck, lint and tests are green.
 - One conventional commit per phase. Never commit `.env.local`.
 - Record every judgement call in `docs/DECISIONS.md` (decision, alternatives, why).

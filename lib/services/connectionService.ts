@@ -1,19 +1,8 @@
 import { AppError, forbidden, notFound } from "@/lib/errors";
-import {
-  encryptToken,
-  newNonce,
-  signState,
-  type OAuthState,
-} from "@/lib/instagram/crypto";
+import { encryptToken, newNonce, signState, type OAuthState } from "@/lib/instagram/crypto";
 import { stateKey, tokenKey } from "@/lib/instagram/keys";
 import type { AccountHint, ConnectedAccount } from "@/lib/instagram/types";
-import {
-  asSystem,
-  asUser,
-  withRepos,
-  type ConnectionWrite,
-  type Role,
-} from "@/lib/repositories";
+import { asSystem, asUser, withRepos, type ConnectionWrite, type Role } from "@/lib/repositories";
 import { getWorkspaceContext } from "./creatorService";
 
 /** Cookie-sized and short-lived; the nonce is echoed to Meta, the rest stays server-side. */
@@ -120,9 +109,7 @@ export async function completeConnection(
         "That Facebook login belongs to a different Instagram account. Use “Connect account” to add it as a new creator.",
       );
     }
-    const updated = await withRepos(asSystem(), (r) =>
-      r.creators.updateConnection(existingCreatorId, write),
-    );
+    const updated = await withRepos(asSystem(), (r) => r.creators.updateConnection(existingCreatorId, write));
     if (!updated) throw notFound("That account");
     await audit(workspaceId, actorUserId, "creator.reconnected", existingCreatorId);
     return { creatorId: existingCreatorId, connected: 1 };
@@ -179,12 +166,7 @@ async function requireConnector(
   return membership;
 }
 
-async function audit(
-  workspaceId: string,
-  actorUserId: string,
-  action: string,
-  creatorId: string,
-): Promise<void> {
+async function audit(workspaceId: string, actorUserId: string, action: string, creatorId: string): Promise<void> {
   // Subject is the creator id only: no username, token or profile data goes to the log.
   await withRepos(asSystem(), (r) =>
     r.workspaces.recordAudit({ workspaceId, actorUserId, action, subject: creatorId }),

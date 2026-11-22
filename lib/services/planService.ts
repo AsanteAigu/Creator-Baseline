@@ -4,17 +4,18 @@ import { planOutputSchema } from "@/lib/ai/schemas";
 import { generateStructured } from "@/lib/ai/structured";
 import { budgetStatus } from "@/lib/ai/usage";
 import { AppError, forbidden, notFound } from "@/lib/errors";
-import {
-  asSystem,
-  asUser,
-  withRepos,
-  type Plan,
-  type Suggestion,
-  type SuggestionStatus,
-} from "@/lib/repositories";
+import { asSystem, asUser, withRepos, type Plan, type Suggestion, type SuggestionStatus } from "@/lib/repositories";
 import * as planPrompt from "@/prompts/plan/system";
 import { mockPlan } from "./mockAi";
-import { REPORT_PERIOD_DAYS, ledgerFor, maxTokensFor, promptHistory, toPromptPost, topAndBottom, type AiContext } from "./reportService";
+import {
+  REPORT_PERIOD_DAYS,
+  ledgerFor,
+  maxTokensFor,
+  promptHistory,
+  toPromptPost,
+  topAndBottom,
+  type AiContext,
+} from "./reportService";
 import { weekDates, weekStartLondon } from "./time";
 
 export const IDEAS_PER_WEEK = 7;

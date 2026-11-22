@@ -4,7 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 export function RunNowButton({ creatorId, label = "Update now" }: { creatorId: string; label?: string }) {
   const router = useRouter();

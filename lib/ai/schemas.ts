@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Every model output passes one of these before anything reads it (BUILD_PROMPT §2). */
+/** Every model output passes one of these before anything reads it (SPECIFICATION §2). */
 
 const sentimentLabel = z.enum(["positive", "neutral", "negative"]);
 

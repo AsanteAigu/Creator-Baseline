@@ -1,10 +1,5 @@
 import { fixtureComments } from "@/lib/fixtures/comments";
-import {
-  FIXTURE_CREATORS,
-  generateCreatorPosts,
-  type FixtureCreator,
-  type FixturePost,
-} from "@/lib/fixtures/creators";
+import { FIXTURE_CREATORS, generateCreatorPosts, type FixtureCreator, type FixturePost } from "@/lib/fixtures/creators";
 import {
   InstagramError,
   type AccountHint,

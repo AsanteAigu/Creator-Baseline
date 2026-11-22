@@ -26,7 +26,9 @@ export default async function LoginPage() {
           <div className="mt-8 rounded-xl border border-border/70 bg-card p-6 shadow-card">
             <LoginForm />
           </div>
-          <p className="mt-6 text-center text-[13px] text-muted-foreground">New here? Open the invite link your agency sent you.</p>
+          <p className="mt-6 text-center text-[13px] text-muted-foreground">
+            New here? Open the invite link your agency sent you.
+          </p>
         </div>
       </div>
 
@@ -57,10 +59,15 @@ function LoginVisual() {
         <div className="glass relative mx-auto w-full max-w-md rounded-2xl p-6 text-foreground shadow-2xl">
           <div className="flex items-center justify-between">
             <p className="text-[13px] text-muted-foreground">Score per post</p>
-            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground">Last 8 posts</span>
+            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground">
+              Last 8 posts
+            </span>
           </div>
           <div className="relative mt-6 flex h-40 items-end gap-3">
-            <div className="absolute inset-x-0 border-t border-dashed border-foreground/30" style={{ bottom: `${(1 / 1.6) * 100}%` }}>
+            <div
+              className="absolute inset-x-0 border-t border-dashed border-foreground/30"
+              style={{ bottom: `${(1 / 1.6) * 100}%` }}
+            >
               <span className="absolute -top-5 left-0 text-[11px] text-muted-foreground">1.00 = usual</span>
             </div>
             {bars.map((v, i) => (

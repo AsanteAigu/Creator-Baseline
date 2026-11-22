@@ -125,9 +125,7 @@ export function parseServerEnv(source: Record<string, string | undefined>): Serv
   const result = serverEnvSchema.safeParse(source);
   if (!result.success) {
     // Report variable names only — never echo values, they may be secrets.
-    throw new EnvError(
-      result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`),
-    );
+    throw new EnvError(result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`));
   }
   return result.data;
 }
@@ -154,7 +152,6 @@ export function featureFlags(env: ServerEnv = serverEnv()): FeatureFlags {
   return {
     mockInstagram: env.INSTAGRAM_SOURCE === "mock",
     mockAi: env.AI_PROVIDER === "mock",
-    rateLimiting:
-      env.UPSTASH_REDIS_REST_URL !== undefined && env.UPSTASH_REDIS_REST_TOKEN !== undefined,
+    rateLimiting: env.UPSTASH_REDIS_REST_URL !== undefined && env.UPSTASH_REDIS_REST_TOKEN !== undefined,
   };
 }

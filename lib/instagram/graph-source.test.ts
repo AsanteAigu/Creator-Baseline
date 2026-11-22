@@ -1,18 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { GraphClient } from "./graph-client";
-import {
-  GraphInstagramSource,
-  INSTAGRAM_OAUTH_SCOPES,
-  OAUTH_SCOPES,
-} from "./graph-source";
+import { GraphInstagramSource, INSTAGRAM_OAUTH_SCOPES, OAUTH_SCOPES } from "./graph-source";
 import type { InstagramCreator, RawMedia } from "./types";
 
 type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response>;
 
 function fakeFetch(handler: Handler): typeof fetch {
   return async (input, init) => {
-    const url =
-      input instanceof URL ? input : typeof input === "string" ? new URL(input) : new URL(input.url);
+    const url = input instanceof URL ? input : typeof input === "string" ? new URL(input) : new URL(input.url);
     return handler(url, init);
   };
 }
@@ -96,33 +91,37 @@ describe("authorizationUrl", () => {
 describe("exchangeCode (Direct Instagram Login)", () => {
   it("exchanges code and reads profile directly from /me without Facebook Page", async () => {
     const seen: URL[] = [];
-    const source = sourceWith((url, init) => {
-      seen.push(url);
-      if (url.origin === "https://api.instagram.com" && url.pathname.endsWith("/oauth/access_token")) {
-        expect(init?.method).toBe("POST");
-        // Shape from Meta's docs: wrapped in data[], with an app-scoped user_id we must ignore.
-        return json({ data: [{ access_token: "short-ig-tok", user_id: "1020", permissions: "x" }] });
-      }
-      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/access_token")) {
-        expect(url.searchParams.get("grant_type")).toBe("ig_exchange_token");
-        expect(url.searchParams.get("access_token")).toBe("short-ig-tok");
-        return json({ access_token: "long-ig-tok", expires_in: 5_184_000 });
-      }
-      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/me")) {
-        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer long-ig-tok");
-        return json({
-          id: "app-scoped-1020",
-          user_id: "17841400000000999",
-          username: "direct_creator",
-          name: "Direct Creator",
-          profile_picture_url: "https://cdn.example/pfp.jpg",
-        });
-      }
-      if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/refresh_access_token")) {
-        return json({ access_token: "refreshed-ig-tok", expires_in: 5_184_000 });
-      }
-      return json({}, 404);
-    }, undefined, "instagram");
+    const source = sourceWith(
+      (url, init) => {
+        seen.push(url);
+        if (url.origin === "https://api.instagram.com" && url.pathname.endsWith("/oauth/access_token")) {
+          expect(init?.method).toBe("POST");
+          // Shape from Meta's docs: wrapped in data[], with an app-scoped user_id we must ignore.
+          return json({ data: [{ access_token: "short-ig-tok", user_id: "1020", permissions: "x" }] });
+        }
+        if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/access_token")) {
+          expect(url.searchParams.get("grant_type")).toBe("ig_exchange_token");
+          expect(url.searchParams.get("access_token")).toBe("short-ig-tok");
+          return json({ access_token: "long-ig-tok", expires_in: 5_184_000 });
+        }
+        if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/me")) {
+          expect(new Headers(init?.headers).get("authorization")).toBe("Bearer long-ig-tok");
+          return json({
+            id: "app-scoped-1020",
+            user_id: "17841400000000999",
+            username: "direct_creator",
+            name: "Direct Creator",
+            profile_picture_url: "https://cdn.example/pfp.jpg",
+          });
+        }
+        if (url.origin === "https://graph.instagram.com" && url.pathname.endsWith("/refresh_access_token")) {
+          return json({ access_token: "refreshed-ig-tok", expires_in: 5_184_000 });
+        }
+        return json({}, 404);
+      },
+      undefined,
+      "instagram",
+    );
 
     const account = await source.exchangeCode("code-ig");
     expect(account).toMatchObject({
@@ -138,21 +137,29 @@ describe("exchangeCode (Direct Instagram Login)", () => {
   });
 
   it("refuses an account when /me has no professional account id, rather than using the app-scoped id", async () => {
-    const source = sourceWith((url) => {
-      if (url.origin === "https://api.instagram.com") return json({ access_token: "short", user_id: "1020" });
-      if (url.pathname.endsWith("/access_token")) return json({ access_token: "long", expires_in: 100 });
-      if (url.pathname.endsWith("/me")) return json({ id: "app-scoped-1020", username: "direct_creator" });
-      return json({}, 404);
-    }, undefined, "instagram");
+    const source = sourceWith(
+      (url) => {
+        if (url.origin === "https://api.instagram.com") return json({ access_token: "short", user_id: "1020" });
+        if (url.pathname.endsWith("/access_token")) return json({ access_token: "long", expires_in: 100 });
+        if (url.pathname.endsWith("/me")) return json({ id: "app-scoped-1020", username: "direct_creator" });
+        return json({}, 404);
+      },
+      undefined,
+      "instagram",
+    );
     await expect(source.exchangeCode("code")).rejects.toMatchObject({ code: "PERMANENT" });
   });
 
   it("does not call a revoke endpoint, because Instagram Login has none", async () => {
     const seen: URL[] = [];
-    const source = sourceWith((url) => {
-      seen.push(url);
-      return json({ success: true });
-    }, undefined, "instagram");
+    const source = sourceWith(
+      (url) => {
+        seen.push(url);
+        return json({ success: true });
+      },
+      undefined,
+      "instagram",
+    );
     await source.revokeToken("long-ig-tok");
     expect(seen).toHaveLength(0);
   });
@@ -288,9 +295,9 @@ describe("listRecentMedia", () => {
 
   it("refuses to call Instagram without a token", async () => {
     const source = sourceWith(() => json({ data: [] }));
-    await expect(
-      source.listRecentMedia({ ...creator, accessToken: null }, new Date()),
-    ).rejects.toMatchObject({ code: "AUTH" });
+    await expect(source.listRecentMedia({ ...creator, accessToken: null }, new Date())).rejects.toMatchObject({
+      code: "AUTH",
+    });
   });
 });
 
@@ -335,10 +342,7 @@ describe("getMediaInsights", () => {
       });
     });
 
-    const result = await source.getMediaInsights(
-      creator,
-      media({ mediaType: "IMAGE", mediaProductType: "FEED" }),
-    );
+    const result = await source.getMediaInsights(creator, media({ mediaType: "IMAGE", mediaProductType: "FEED" }));
     expect(metric).not.toContain("ig_reels_avg_watch_time");
     expect(result.avgWatchTimeMs).toBeNull();
   });
@@ -425,7 +429,12 @@ describe("Unified Login", () => {
       }),
     });
     const account = await source.exchangeCode("code-u");
-    expect(account).toMatchObject({ token: "suat", igUserId: "17841400000000777", username: "unified_creator", expiresAt: null });
+    expect(account).toMatchObject({
+      token: "suat",
+      igUserId: "17841400000000777",
+      username: "unified_creator",
+      expiresAt: null,
+    });
   });
 
   it("takes every account when a first login shares several (D-044)", async () => {
@@ -437,7 +446,12 @@ describe("Unified Login", () => {
         fetch: fakeFetch((url) =>
           url.pathname.endsWith("/oauth/access_token")
             ? json({ access_token: "suat" })
-            : json({ data: [{ id: "1", username: "a" }, { id: "2", username: "b" }] }),
+            : json({
+                data: [
+                  { id: "1", username: "a" },
+                  { id: "2", username: "b" },
+                ],
+              }),
         ),
         sleep: async () => {},
       }),
@@ -457,7 +471,12 @@ describe("Unified Login with several accounts in one portfolio (D-041)", () => {
         fetch: fakeFetch((url) =>
           url.pathname.endsWith("/oauth/access_token")
             ? json({ access_token: "suat" })
-            : json({ data: [{ id: "111", username: "already.here" }, { id: "222", username: "brand.new" }] }),
+            : json({
+                data: [
+                  { id: "111", username: "already.here" },
+                  { id: "222", username: "brand.new" },
+                ],
+              }),
         ),
         sleep: async () => {},
       }),

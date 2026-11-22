@@ -56,7 +56,7 @@ function instagramFailureMessage(now: Date, everyHours: number): string {
 }
 
 /**
- * The ingestion pipeline (BUILD_PROMPT §8), idempotent per (creator, hour window):
+ * The ingestion pipeline (SPECIFICATION §8), idempotent per (creator, hour window):
  * upsert posts -> fetch insights -> append metrics -> baselines -> score -> themes -> report
  * -> plan. Instagram failure fails the run with a readable message; AI failure never does.
  */
@@ -207,7 +207,11 @@ async function runAiSteps(input: {
 
   const ctx = { workspaceId: input.workspaceId, provider: input.ai };
   try {
-    const { posts, labelCounts, mediaIds: fortnight } = await withRepos(asSystem(), async (r) => ({
+    const {
+      posts,
+      labelCounts,
+      mediaIds: fortnight,
+    } = await withRepos(asSystem(), async (r) => ({
       posts: await r.posts.listViews(input.creatorId, {}, 200, null),
       labelCounts: await r.scores.labelCountsForRun(input.runId),
       mediaIds: await r.posts.recentMediaIds(
@@ -243,7 +247,9 @@ async function runAiSteps(input: {
     return null;
   } catch (err) {
     // Log the class of failure only: messages could echo prompt content.
-    console.error(`[ingest] AI step failed for creator ${input.creatorId}: ${err instanceof Error ? err.name : "unknown"}`);
+    console.error(
+      `[ingest] AI step failed for creator ${input.creatorId}: ${err instanceof Error ? err.name : "unknown"}`,
+    );
     return {
       code: "AI_FAILED",
       message: "The written summary couldn't be generated this time. Scores are up to date.",

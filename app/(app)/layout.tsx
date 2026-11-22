@@ -34,7 +34,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
 
         <nav aria-label="Main" className="mt-8 flex flex-col gap-1">
-          <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">Workspace</p>
+          <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+            Workspace
+          </p>
           {NAV.map(({ href, match, label, Icon }) => (
             <NavLink key={href} href={href} match={[...match]}>
               <Icon aria-hidden />
@@ -74,7 +76,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-border/70 bg-page/85 backdrop-blur-md lg:hidden">
           <div className="flex h-16 items-center gap-2 px-4 sm:px-6">
-            <Link href="/dashboard" className="mr-auto flex min-h-11 items-center gap-2.5 font-display font-semibold tracking-tight">
+            <Link
+              href="/dashboard"
+              className="mr-auto flex min-h-11 items-center gap-2.5 font-display font-semibold tracking-tight"
+            >
               <BrandMark className="size-8" />
               <span className="hidden min-[400px]:inline">{PRODUCT_NAME}</span>
             </Link>
@@ -94,7 +99,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </form>
           </div>
         </header>
-        <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">{children}</main>
+        <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          {children}
+        </main>
       </div>
     </div>
   );

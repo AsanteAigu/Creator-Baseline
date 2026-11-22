@@ -49,13 +49,7 @@ describe("insight metric names", () => {
   });
 
   it("uses the current names for the shared metrics", () => {
-    expect(insightMetricsFor({ mediaProductType: "FEED" })).toEqual([
-      "reach",
-      "likes",
-      "comments",
-      "saved",
-      "shares",
-    ]);
+    expect(insightMetricsFor({ mediaProductType: "FEED" })).toEqual(["reach", "likes", "comments", "saved", "shares"]);
   });
 });
 
@@ -64,10 +58,7 @@ describe("mapInsights", () => {
   const image = { id: "m2", mediaProductType: "FEED" } as const;
 
   it("maps a Reel including watch time and views", () => {
-    const result = mapInsights(
-      reel,
-      entries({ ...FEED_NUMBERS, ig_reels_avg_watch_time: 4_321.6, views: 9_000 }),
-    );
+    const result = mapInsights(reel, entries({ ...FEED_NUMBERS, ig_reels_avg_watch_time: 4_321.6, views: 9_000 }));
     expect(result).toEqual({
       reach: 1_000,
       likes: 50,

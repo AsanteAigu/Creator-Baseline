@@ -32,7 +32,7 @@ export type { Scope };
 
 /** User-facing requests: Postgres RLS decides what is visible. */
 export const asUser = (userId: string): Scope => ({ kind: "user", userId });
-/** Background jobs only (BUILD_PROMPT §4): never use in a user request path. */
+/** Background jobs only (SPECIFICATION §4): never use in a user request path. */
 export const asSystem = (): Scope => ({ kind: "system" });
 
 /** Runs `fn` in one transaction with every repository bound to it. */

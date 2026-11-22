@@ -14,6 +14,5 @@ export const ingestCreatorJob = inngest.createFunction(
     concurrency: { key: "event.data.creatorId", limit: 1 },
     triggers: [creatorSyncRequested],
   },
-  async ({ event, step }) =>
-    step.run("ingest", () => ingestCreator(event.data.creatorId, { trigger: "schedule" })),
+  async ({ event, step }) => step.run("ingest", () => ingestCreator(event.data.creatorId, { trigger: "schedule" })),
 );

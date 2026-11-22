@@ -1,157 +1,238 @@
 # Creator Baseline
 
-A social-media growth analyst for large Instagram creator accounts. It collects each
-creator's recent posts, scores every post against that creator's own historical baseline,
-reads recent comments for audience themes, and produces a weekly report and content plan on
-an authenticated dashboard.
+[![CI](https://github.com/AsanteAigu/Creator-Baseline/actions/workflows/ci.yml/badge.svg)](https://github.com/AsanteAigu/Creator-Baseline/actions/workflows/ci.yml)
 
-Built for a UK agency with three creator accounts. Working name only: change `PRODUCT_NAME`
-in `lib/config.ts` when the real one lands.
+Instagram analytics for agencies that manage creators. Creator Baseline scores every post against
+**that creator's own** historical baseline, summarises what the audience is saying in the comments,
+and drafts a weekly content plan grounded in the creator's real results.
 
-- **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind + shadcn/ui, Supabase
-  Postgres with row-level security, Inngest for schedules and events, Anthropic for the
-  written analysis, Upstash for rate limiting.
-- **No credentials needed for the demo:** `INSTAGRAM_SOURCE=mock` and `AI_PROVIDER=mock`
-  serve deterministic fixtures through the real pipeline and the real UI.
+**Live:** <https://creator-baseline-three.vercel.app>
 
-## Quick start
+> A score of 1.00 means "a typical post for this creator in this format". Above 1.50 is Strong,
+> below 0.90 is Weak. 2,000 reach can be a flop for one creator and a record for another; the
+> baseline is what makes the number mean something.
 
-Requirements: Node 20.9+, pnpm 10, and a Postgres database (local or Supabase). Docker is
-not required; `pnpm db:migrate` applies the same SQL files Supabase would.
+## Contents
+
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Architecture](#architecture)
+- [Repository layout](#repository-layout)
+- [Getting started](#getting-started)
+- [Scripts](#scripts)
+- [Testing](#testing)
+- [Configuration](#configuration)
+- [Deployment](#deployment)
+- [Documentation](#documentation)
+
+## Features
+
+- **Connect accounts** through Meta's Unified Login. One login can share several professional
+  accounts; each becomes its own creator with its own encrypted token.
+- **Ingestion pipeline** reads up to a year of posts with reach, likes, comments, shares, saves,
+  views and Reel watch time. It runs hourly through Inngest or on demand, and is idempotent per
+  creator and hour.
+- **Deterministic scoring**: per-format medians over the last 30 posts, capped ratios, and weighted
+  signals. It is pure functions with a golden test ([spec](docs/SPECIFICATION.md#5-scoring-spec-exact--implement-to-the-number)).
+- **AI analysis** with guardrails: comment themes, a "what's working" report and a seven-idea weekly
+  plan. Every model reply is validated with Zod, every point must cite a real post and number, and
+  spend is capped per workspace.
+- **Dashboard**: portfolio overview, account analytics over 28 days, 90 days or 12 months (score
+  trend, weekly reach, format and weekday breakdowns, top and bottom posts), and the weekly plan with
+  used / not used feedback.
+- **Multi-tenant and private by design**: Postgres row-level security on every table, four roles
+  (owner, admin, viewer, creator), and no comment text, commenter names or comment IDs are ever stored.
+
+## Tech stack
+
+| Concern         | Choice                                                                      |
+| --------------- | --------------------------------------------------------------------------- |
+| App             | Next.js 16 (App Router), React 19, TypeScript (`strict`, `noUncheckedIndexedAccess`) |
+| UI              | Tailwind CSS 4, shadcn/ui primitives, Lucide icons, hand-built SVG charts   |
+| Data            | Supabase Postgres with RLS, Supabase Auth, SQL migrations                   |
+| Jobs            | Inngest (hourly tick, per-creator ingestion, weekly plan, daily purge)      |
+| AI              | Google Gemini (production), Anthropic Claude (supported), deterministic mock |
+| Rate limiting   | Upstash Redis                                                               |
+| Validation      | Zod at every boundary (env, HTTP input, AI output)                          |
+| Tests           | Vitest (unit and integration against real Postgres), Playwright (E2E)       |
+| Hosting         | Vercel, deployed from `main`                                                |
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Browser["Browser"] --> App["app/ — pages and route handlers<br/>HTTP + Zod validation only"]
+    Jobs["jobs/ — Inngest functions"] --> Services
+    App --> Services["lib/services/ — business rules and orchestration"]
+    Services --> Repos["lib/repositories/ — all SQL"]
+    Services --> Scoring["lib/scoring/ — pure functions"]
+    Services --> AI["lib/ai/ — provider clients + generateStructured()"]
+    Services --> IG["lib/instagram/ — Graph API adapter + mock"]
+    Repos --> DB[("Supabase Postgres<br/>RLS on every table")]
+```
+
+Dependencies only point downward: `app → services → repositories → db`. Background jobs enter at
+the service layer, so a scheduled run and the "Update now" button execute the same code. The
+boundaries are enforced by `no-restricted-imports` rules in [`eslint.config.mjs`](eslint.config.mjs),
+so a violation fails `pnpm lint`.
+
+The rules the code is built to:
+
+- AI drafts prose, extracts themes and proposes ideas. Deterministic code does scoring,
+  labelling, storage and authorisation.
+- `post_metrics` is append-only (a trigger rejects `UPDATE`). Rates and scores are `numeric`,
+  stored to 4 dp and shown to 2 dp.
+- Instagram tokens are AES-256-GCM encrypted at rest and are never logged, never put in a URL and
+  never returned in an API response.
+- The service-role key is used only by background jobs, never in a user request path.
+
+Full detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Repository layout
+
+```
+app/                    Next.js routes
+  (app)/                  authenticated pages: dashboard, accounts/[creatorId], plan, settings
+  api/                    route handlers (creators, settings, suggestions, health, inngest)
+  login/, invite/         public entry points
+components/
+  account/                account page sections (analytics cards, report, themes, banners)
+  charts/                 SVG charts and stat tiles
+  plan/, settings/        feature components
+  ui/                     shadcn/ui primitives
+lib/
+  services/               business logic: runs, scoring, reports, plans, connections, members
+  repositories/           the only code that touches Postgres
+  scoring/                pure scoring maths (no I/O)
+  instagram/              Graph API client, OAuth, token crypto, mock source
+  ai/                     provider interface, Gemini/Anthropic/mock clients, structured output
+  auth/, db/              session resolution and database scopes
+  config.ts               environment parsing (Zod) and PRODUCT_NAME
+prompts/                versioned prompts for themes, report and plan
+jobs/                   Inngest functions
+supabase/migrations/    ordered SQL migrations, RLS enabled with each table
+scripts/                migrate, seed, ingest, demo, workspace bootstrap, client-secret scan
+tests/integration/      pipeline, RLS, connection, purge and health tests
+e2e/                    the Playwright path
+docs/                   architecture, specification, decisions, requirements, demo script
+```
+
+Unit tests sit next to the code they cover (`*.test.ts`).
+
+## Getting started
+
+**Requirements:** Node 22 (see [`.nvmrc`](.nvmrc); 20.9+ works), pnpm 10, and a local Postgres.
+Docker is not needed: `pnpm db:migrate` applies the same SQL that Supabase would, plus a small auth
+shim for plain Postgres.
+
+### Quickest path: local demo
 
 ```bash
 pnpm install
-cp .env.example .env.local          # then set DATABASE_URL and SESSION_SECRET
-pnpm db:reset                       # migrate, seed 3 creators x 40 posts, run the pipeline
+cp .env.example .env.local
+# set DEMO_DATABASE_URL to a local database, e.g.
+# postgres://postgres:password@localhost:5432/creator_baseline_demo
+pnpm demo              # migrates, seeds three demo creators, runs the pipeline, starts the app
+```
+
+Open <http://localhost:3000> and sign in as `owner@demo.agency` / `creator-baseline-demo`.
+The demo runs with mock Instagram and mock AI, needs no external credentials, and refuses to run
+against anything but a local database. `pnpm demo --reset` rebuilds the data with posts dated
+around today.
+
+### Full development setup
+
+```bash
+cp .env.example .env.local     # set DATABASE_URL and SESSION_SECRET (32+ chars)
+pnpm db:migrate
 pnpm dev
 ```
 
-Open <http://localhost:3000> and sign in with `owner@demo.agency` /
-`creator-baseline-demo` (or `viewer@demo.agency` for the read-mostly role). Set
-`SEED_DEMO_PASSWORD` before seeding to change it.
-
-`SESSION_SECRET` must be at least 32 characters. Generate one:
+With `INSTAGRAM_SOURCE=mock` and `AI_PROVIDER=mock` only `DATABASE_URL` and `SESSION_SECRET` are
+needed. Generate a secret with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-### Commands
-
-| Command | What it does |
-|---|---|
-| `pnpm dev` | Next dev server |
-| `pnpm build` / `pnpm start` | Production build / serve |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm lint` | ESLint, including the layer import rules |
-| `pnpm test` | Unit tests (scoring, AI, Graph client, scheduling) |
-| `pnpm test:integration` | Full-pipeline, RLS, connection and purge tests against `TEST_DATABASE_URL` |
-| `pnpm db:migrate` | Apply pending migrations (`--reset` drops the app schema first) |
-| `pnpm db:seed` | Seed three creators, 40 posts each, and two demo users |
-| `pnpm ingest [username]` | Run the pipeline once for every creator or one of them |
-| `pnpm db:reset` | Migrate, seed and ingest — the clean demo state |
-| `pnpm check:secrets` | After `pnpm build`: assert no server-only secret is in `.next/static` |
-| `pnpm exec playwright test` | The one end-to-end path (needs `pnpm db:reset`) |
-
-## How it fits together
-
-```
-app/ + components/        pages, route handlers, rendering
-        │
-lib/services/             business rules and orchestration
-        │
-lib/repositories/         every SQL statement
-        │
-Supabase Postgres         RLS on every table; tenancy is the workspace
-```
-
-`lib/scoring/` is pure maths and has no I/O. `lib/ai/` and `lib/instagram/` put external
-services behind interfaces with mock implementations. `jobs/` wires the same services to
-Inngest. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the data model and the
-security model, and [`docs/DECISIONS.md`](docs/DECISIONS.md) for every judgement call.
-
-### Jobs and schedules
-
-One Inngest app (`creator-baseline`) registered at `/api/inngest`:
-
-| Function | Schedule | Work |
-|---|---|---|
-| `schedule-tick` | hourly | finds creators past their workspace interval and emits `creator/sync.requested` |
-| `ingest-creator` | on event | runs the ingestion pipeline for one creator |
-| `weekly-plan` | Monday 06:00 Europe/London | writes the week's plan for each active creator |
-| `purge-expired` | daily 03:30 Europe/London | fails stranded runs and finishes interrupted deletions |
-
-The interval is set per workspace in `/settings` (1–24 hours; default 6). It is not a cron
-per creator: the hourly tick is the only schedule, and the due check is in
-`lib/services/scheduleService.ts`. Locally, jobs are inert unless you run the Inngest dev
-server; the dashboard's "Update now" exercises the same pipeline inline.
+To run the background jobs locally, start the Inngest dev server alongside `pnpm dev`:
 
 ```bash
 npx inngest-cli@latest dev -u http://localhost:3000/api/inngest
 ```
 
+## Scripts
+
+| Command                         | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `pnpm dev`                      | Next.js dev server                                               |
+| `pnpm demo [--reset]`           | Local demo on its own database with mock Instagram and AI        |
+| `pnpm build` / `pnpm start`     | Production build / serve                                         |
+| `pnpm check`                    | Format check, typecheck, lint and unit tests (the pre-push gate) |
+| `pnpm typecheck`                | `tsc --noEmit`                                                   |
+| `pnpm lint`                     | ESLint, including the layer-boundary rules                       |
+| `pnpm format` / `format:check`  | Prettier                                                         |
+| `pnpm test` / `test:watch`      | Unit tests                                                       |
+| `pnpm test:integration`         | Integration tests against `TEST_DATABASE_URL` (reset each run)   |
+| `pnpm test:e2e`                 | Playwright end-to-end path (needs a seeded database)             |
+| `pnpm check:secrets`            | After a build, asserts no server-only secret reached `.next/static` |
+| `pnpm db:migrate`               | Apply pending migrations                                         |
+| `pnpm db:seed` / `db:reset`     | Seed demo data / drop, migrate, seed and ingest (local only)     |
+| `pnpm ingest [username]`        | Run the pipeline once for every creator, or one                  |
+| `pnpm workspace:create`         | Bootstrap a production workspace and its owner                   |
+
+`db:reset` refuses to run against a Supabase-hosted database, and `pnpm demo` only runs against a local one.
+
+## Testing
+
+| Suite       | What it covers                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| Unit        | Scoring (the golden 1.27 example and every edge case), Graph client retries and pacing, Graph source mapping, AI structured output and prompt snapshots, analytics, scheduling |
+| Integration | A full ingestion run and its idempotency, cross-workspace RLS denial, roles, connection and multi-account login, token encryption, disconnect and purge, orphaned runs, health |
+| End-to-end  | Sign in → overview → account → scores → mark a plan idea → reload → persisted                          |
+
+Integration tests run against a real Postgres that is reset on every run. They blank every live
+credential, so they can never reach Supabase, Upstash or an AI provider.
+
+[CI](.github/workflows/ci.yml) runs the format check, typecheck, lint and unit tests, the
+integration suite against a Postgres service container, and a production build followed by the
+client-bundle secret scan, on every push and pull request.
+
 ## Configuration
 
-Every variable is documented in [`.env.example`](.env.example). The important groups:
+Every variable is documented in [`.env.example`](.env.example) and parsed lazily with Zod in
+[`lib/config.ts`](lib/config.ts). Errors name the offending variables without echoing their values.
 
-- **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (browser-safe),
-  `SUPABASE_SERVICE_ROLE_KEY` (server/jobs only), `DATABASE_URL` (migrations and scripts).
-- **Instagram:** `INSTAGRAM_SOURCE=mock|graph`, app id/secret, redirect URI, and a 32-byte
-  base64 `TOKEN_ENCRYPTION_KEY` for token encryption and OAuth state. Local mock mode derives
-  a key from `SESSION_SECRET` when it is unset.
-- **AI:** `AI_PROVIDER=mock|anthropic` and `ANTHROPIC_API_KEY`.
-- **Jobs:** `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`.
-- **Production:** also requires Upstash REST credentials, which make rate limits shared
-  across serverless instances.
+| Group     | Variables                                                                                       |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| Supabase  | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` |
+| Instagram | `INSTAGRAM_SOURCE`, `INSTAGRAM_LOGIN_TYPE`, `INSTAGRAM_LOGIN_CONFIG_ID`, app ID and secret, `INSTAGRAM_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` |
+| AI        | `AI_PROVIDER` (`gemini`, `anthropic` or `mock`), `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`           |
+| Jobs      | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`                                                      |
+| Platform  | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `APP_BASE_URL`                             |
 
-`lib/config.ts` validates all of this lazily with Zod and names the offending variables
-without echoing values.
+Production refuses to boot without Supabase, the token key, Upstash and Inngest.
 
-## Deploying to Vercel
+## Deployment
 
-1. Create a Supabase project, apply `supabase/migrations/*.sql` (`supabase db push`, or
-   `DATABASE_URL=... pnpm db:migrate`), and seed it if this is the demo environment.
-2. Import the repo into Vercel as a Next.js project.
-3. Add every variable from `.env.example` that the production rules in `lib/config.ts`
-   require. Production refuses to boot without Supabase, `TOKEN_ENCRYPTION_KEY`, Upstash and
-   Inngest keys.
-4. Set `APP_BASE_URL` and `INSTAGRAM_REDIRECT_URI` to the deployed origin, and add the
-   callback URL to the Meta app.
-5. In Inngest Cloud, create an app and point it at `https://<domain>/api/inngest`; the
-   signing key from that app goes into `INNGEST_SIGNING_KEY`.
-6. Deploy, then check `GET /api/health` while signed in. It reports the commit, migration
-   count and the last run per creator. A degraded report is still HTTP 200.
+Vercel deploys `main` automatically.
 
-`/api/inngest` declares a 300-second function limit, which needs Vercel Pro. On Hobby,
-lower `maxDuration` in `app/api/inngest/route.ts`; the ingestion step then has 60 seconds,
-which is enough for the three demo creators but may need splitting for a slower real account.
+1. Create a Supabase project and apply `supabase/migrations/` (`DATABASE_URL=... pnpm db:migrate`).
+2. Create the owner's workspace with `pnpm workspace:create`.
+3. Import the repository into Vercel and set the production variables from `.env.example`.
+4. In the Meta app, add `<origin>/api/creators/callback` as a valid OAuth redirect URI and create a
+   Unified Login configuration.
+5. Point an Inngest Cloud app at `<origin>/api/inngest`.
+6. While signed in, check `GET /api/health`. It reports the commit, the migration ledger and the
+   latest run per creator.
 
-## Tests
+## Documentation
 
-- **Unit** — the scoring golden example and every edge case, AI structured-output retries,
-  prompt snapshots, Graph client retry/pacing, and the scheduler's due check.
-- **Integration** — one full `ingestCreator` run and its idempotency, cross-workspace RLS
-  denial, role rules, token encryption/refresh, purge/disconnect (zero child rows, audit +
-  deletion record, token revocation), orphan-run recovery, and the health report.
-- **End-to-end** — one Playwright path: login → dashboard → account → scores → toggle a plan
-  suggestion → reload → persisted.
-
-Integration tests reset `TEST_DATABASE_URL` on every run and never touch the demo database.
-
-## Scope and open questions
-
-v1 is one workspace, three creators, Instagram only, no auto-posting, no billing, no
-prediction. The client's requirements document left a few answers open; they are logged in
-`docs/DECISIONS.md` and do not block the demo:
-
-- the final three creator handles (fixtures stand in),
-- report cadence (weekly is implemented, and the report refreshes each run),
-- per-creator visibility (v1: everyone in the workspace sees every creator),
-- watch-time wording and the exact Reel metric (uses `ig_reels_avg_watch_time`).
-
-Optional CSV import (if Instagram approval is still pending at demo time) is documented but
-deliberately **not built**: it would add a second ingest path to test and maintain.
-
-## Demo
-
-The five-minute client call script is in [`docs/DEMO.md`](docs/DEMO.md).
+| Document                                        | Contents                                                        |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)   | Layers, data model, security model, pipeline, jobs, integrations |
+| [`docs/SPECIFICATION.md`](docs/SPECIFICATION.md) | The technical specification the system is built to              |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md)         | Every judgement call, with the alternatives considered          |
+| [`docs/requirements.md`](docs/requirements.md)   | The client's requirements document                              |
+| [`docs/DEMO.md`](docs/DEMO.md)                   | The client demo script                                          |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)             | Workflow, conventions and the definition of done                |

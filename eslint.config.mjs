@@ -22,7 +22,10 @@ const layerRules = [
         "error",
         {
           patterns: [
-            { group: ["@/lib/repositories", "@/lib/repositories/*"], message: "UI and routes call services, never repositories." },
+            {
+              group: ["@/lib/repositories", "@/lib/repositories/*"],
+              message: "UI and routes call services, never repositories.",
+            },
             { group: ["postgres", "@/lib/db", "@/lib/db/*"], message: "Only repositories touch Postgres." },
             { group: ["@anthropic-ai/sdk"], message: "Only lib/ai/client.ts imports the Anthropic SDK." },
           ],
@@ -37,9 +40,7 @@ const layerRules = [
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
-            { regex: "^(?!\.{1,2}/).*", message: "lib/scoring is pure: relative type imports only." },
-          ],
+          patterns: [{ regex: "^(?!\.{1,2}/).*", message: "lib/scoring is pure: relative type imports only." }],
         },
       ],
     },
@@ -51,7 +52,10 @@ const layerRules = [
         "error",
         {
           patterns: [
-            { group: ["postgres", "@supabase/*", "@/lib/db", "@/lib/db/*"], message: "Services call repositories; no SQL here." },
+            {
+              group: ["postgres", "@supabase/*", "@/lib/db", "@/lib/db/*"],
+              message: "Services call repositories; no SQL here.",
+            },
             { group: ["next/*", "next"], message: "Services know nothing about HTTP." },
             { group: ["@anthropic-ai/sdk"], message: "Only lib/ai/client.ts imports the Anthropic SDK." },
           ],

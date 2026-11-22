@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 export interface PersonRow {
   userId: string;
@@ -192,7 +192,12 @@ export function PeoplePanel({ people, invites }: { people: PersonRow[]; invites:
                     variant="ghost"
                     size="icon"
                     aria-label={`Cancel invite for ${i.email}`}
-                    onClick={() => remove(`/api/settings/invites/${i.id}`, `Cancel the invite for ${i.email}? The link stops working.`)}
+                    onClick={() =>
+                      remove(
+                        `/api/settings/invites/${i.id}`,
+                        `Cancel the invite for ${i.email}? The link stops working.`,
+                      )
+                    }
                   >
                     <Trash2 aria-hidden />
                   </Button>

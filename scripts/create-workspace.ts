@@ -50,7 +50,7 @@ function fail(message: string): never {
 function promptHidden(question: string): Promise<string> {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const write = (rl as unknown as { _writeToOutput: (s: string) => void });
+    const write = rl as unknown as { _writeToOutput: (s: string) => void };
     write._writeToOutput = (s: string) => {
       if (s.includes(question)) process.stdout.write(question);
     };
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
         const [row] = await tx<{ id: string }[]>`insert into public.workspaces (name) values (${name}) returning id`;
         if (!row) throw new Error("workspace insert returned nothing");
         workspaceId = row.id;
-        // Column defaults hold the scoring defaults (BUILD_PROMPT §5).
+        // Column defaults hold the scoring defaults (SPECIFICATION §5).
         await tx`insert into public.scoring_settings (workspace_id) values (${workspaceId})`;
         console.log(`created workspace "${name}"`);
       } else {

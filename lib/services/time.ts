@@ -1,4 +1,4 @@
-/** Calendar helpers pinned to Europe/London, where the client works (BUILD_PROMPT §10). */
+/** Calendar helpers pinned to Europe/London, where the client works (SPECIFICATION §10). */
 
 const LONDON = "Europe/London";
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -3,12 +3,12 @@
 import { Check, X } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 type SuggestionStatus = "proposed" | "used" | "not_used";
 
 /**
- * Used / not used, persisted and optimistic (BUILD_PROMPT §10). Pressing the active option
+ * Used / not used, persisted and optimistic (SPECIFICATION §10). Pressing the active option
  * again clears it back to "proposed". On failure the optimistic state rolls back.
  */
 export function SuggestionToggle({ suggestionId, initial }: { suggestionId: string; initial: SuggestionStatus }) {

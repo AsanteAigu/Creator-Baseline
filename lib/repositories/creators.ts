@@ -89,11 +89,13 @@ export function creatorsRepo(tx: Tx) {
 
     /** System scope only (token columns are not granted to end users). */
     async getTokenMaterial(id: string): Promise<TokenMaterial | null> {
-      const [row] = await tx<{
-        access_token_ciphertext: string | null;
-        token_iv: string | null;
-        token_expires_at: Date | null;
-      }[]>`
+      const [row] = await tx<
+        {
+          access_token_ciphertext: string | null;
+          token_iv: string | null;
+          token_expires_at: Date | null;
+        }[]
+      >`
         select access_token_ciphertext, token_iv, token_expires_at
         from public.creators where id = ${id}
       `;
@@ -178,13 +180,15 @@ export function creatorsRepo(tx: Tx) {
      * chosen interval so the due check stays in the service (D-032).
      */
     async listSchedulable(): Promise<SchedulableCreator[]> {
-      const rows = await tx<{
-        id: string;
-        workspace_id: string;
-        status: CreatorStatus;
-        last_synced_at: Date | null;
-        schedule_cron: string;
-      }[]>`
+      const rows = await tx<
+        {
+          id: string;
+          workspace_id: string;
+          status: CreatorStatus;
+          last_synced_at: Date | null;
+          schedule_cron: string;
+        }[]
+      >`
         select c.id, c.workspace_id, c.status, c.last_synced_at, s.schedule_cron
         from public.creators c
         join public.scoring_settings s on s.workspace_id = c.workspace_id

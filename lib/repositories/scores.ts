@@ -117,9 +117,7 @@ export function scoresRepo(tx: Tx) {
 
     /** Scored posts from one run, oldest first — the account page's trend line. */
     async trendForRun(runId: string): Promise<TrendPoint[]> {
-      const rows = await tx<
-        { post_id: string; posted_at: Date; format: PostFormat; score: number; label: Label }[]
-      >`
+      const rows = await tx<{ post_id: string; posted_at: Date; format: PostFormat; score: number; label: Label }[]>`
         select s.post_id, p.posted_at, p.format, s.score, s.label
         from public.post_scores s
         join public.posts p on p.id = s.post_id

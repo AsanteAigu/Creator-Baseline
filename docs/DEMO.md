@@ -8,8 +8,7 @@ without spending the call explaining infrastructure.
 
 ```bash
 pnpm install
-pnpm db:reset          # fresh schema, three creators, 40 posts each, full pipeline
-pnpm dev
+pnpm demo --reset      # local demo database: fresh schema, three creators, full pipeline
 ```
 
 - [ ] Open <http://localhost:3000/login> and sign in as `owner@demo.agency` /
@@ -118,7 +117,7 @@ confirmation, then **Cancel**. Do not confirm on the call.
 ## If something breaks
 
 - **Blank page / 500:** check the terminal for the error class; check `/api/health` signed in.
-- **No scores:** confirm `pnpm db:reset` finished and the ingest step printed three
+- **No scores:** confirm `pnpm demo --reset` finished and the ingest step printed three
   `"status":"succeeded"` lines.
 - **Sign-in fails:** reseed with `SEED_DEMO_PASSWORD` set, or use the local default.
 - **Never** debug SQL, tokens or environment values on a shared screen.

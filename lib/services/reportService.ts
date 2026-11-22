@@ -90,7 +90,10 @@ export function topAndBottom(posts: readonly PostView[], since: Date): { top: Po
   const desc = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const top = desc.slice(0, TOP_N);
   const topIds = new Set(top.map((p) => p.id));
-  const bottom = [...desc].reverse().filter((p) => !topIds.has(p.id)).slice(0, TOP_N);
+  const bottom = [...desc]
+    .reverse()
+    .filter((p) => !topIds.has(p.id))
+    .slice(0, TOP_N);
   return { top, bottom };
 }
 

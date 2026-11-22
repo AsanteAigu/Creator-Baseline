@@ -27,11 +27,7 @@ describe("golden example", () => {
     const usual = rateMetrics({ watch: 0.4, sends: 0.02, saves: 0.015, likes: 0.05, comments: 0.004 });
     const history = Array.from({ length: 10 }, (_, i) => reel(`h${i}`, 48 + i * 24, usual));
     // This post: watch 60%, sends 3%, saves 1.5%, likes 6%, comments 0.2%.
-    const post = reel(
-      "p",
-      48,
-      rateMetrics({ watch: 0.6, sends: 0.03, saves: 0.015, likes: 0.06, comments: 0.002 }),
-    );
+    const post = reel("p", 48, rateMetrics({ watch: 0.6, sends: 0.03, saves: 0.015, likes: 0.06, comments: 0.002 }));
 
     const result = scorePost(post, [post, ...history], DEFAULT_SCORING_CONFIG, NOW);
 
@@ -137,7 +133,11 @@ describe("baseline_building", () => {
 
   it("uses only the last medianWindow posts", () => {
     const old = Array.from({ length: 30 }, (_, i) =>
-      reel(`old${i}`, 1000 + i * 24, rateMetrics({ watch: 0.1, sends: 0.001, saves: 0.001, likes: 0.01, comments: 0.001 })),
+      reel(
+        `old${i}`,
+        1000 + i * 24,
+        rateMetrics({ watch: 0.1, sends: 0.001, saves: 0.001, likes: 0.01, comments: 0.001 }),
+      ),
     );
     const recent = Array.from({ length: 5 }, (_, i) => reel(`new${i}`, 48 + i * 24, usual));
     const b = computeBaseline([...old, ...recent], { format: "reel", now: NOW, minAgeHours: 24, medianWindow: 5 });

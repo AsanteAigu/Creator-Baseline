@@ -46,7 +46,9 @@ beforeAll(async () => {
   `;
   ownerId = users.find((u) => u.email === "owner@demo.agency")?.id ?? "";
   viewerId = users.find((u) => u.email === "viewer@demo.agency")?.id ?? "";
-  const [ws] = await sql<{ workspace_id: string }[]>`select workspace_id from workspace_members where user_id = ${ownerId}`;
+  const [ws] = await sql<
+    { workspace_id: string }[]
+  >`select workspace_id from workspace_members where user_id = ${ownerId}`;
   workspaceId = ws?.workspace_id ?? "";
   const creators = await sql<{ id: string; username: string }[]>`select id, username from creators`;
   theoId = creators.find((c) => c.username === "theo.trains")?.id ?? "";
@@ -72,7 +74,9 @@ describe("invite links", () => {
   it("stores only a hash of the token, and the link joins the invited email once", async () => {
     const { invite, token } = await createInvite(ownerId, { email: CREATOR_EMAIL.toUpperCase(), role: "creator" });
     expect(invite.email).toBe(CREATOR_EMAIL);
-    const [stored] = await sql<{ token_hash: string }[]>`select token_hash from workspace_invites where id = ${invite.id}`;
+    const [stored] = await sql<
+      { token_hash: string }[]
+    >`select token_hash from workspace_invites where id = ${invite.id}`;
     expect(stored?.token_hash).not.toContain(token);
     expect(await previewInvite(token)).toMatchObject({ status: "valid", email: CREATOR_EMAIL, role: "creator" });
 
@@ -86,7 +90,11 @@ describe("invite links", () => {
   });
 
   it("refuses an expired link and a revoked one", async () => {
-    const expired = await createInvite(ownerId, { email: "late@test.example", role: "viewer" }, new Date(Date.now() - 8 * 86_400_000));
+    const expired = await createInvite(
+      ownerId,
+      { email: "late@test.example", role: "viewer" },
+      new Date(Date.now() - 8 * 86_400_000),
+    );
     expect((await previewInvite(expired.token)).status).toBe("expired");
     await expectAppError(acceptInvite(viewerId, "late@test.example", expired.token), "CONFLICT");
 

@@ -1,0 +1,11 @@
+node_modules/
+.next/
+pnpm-lock.yaml
+coverage/
+test-results/
+playwright-report/
+.playwright-artifacts/
+supabase/
+**/__snapshots__/
+*.md
+CLAUDE SKILLS/

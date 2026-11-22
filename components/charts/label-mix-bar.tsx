@@ -35,7 +35,8 @@ export function LabelMixBar({ counts }: { counts: Record<"strong" | "normal" | "
               {text}
             </span>
             <span className="text-sm font-semibold tabular-nums text-foreground">
-              {counts[key]} <span className="font-normal text-muted-foreground">({formatPercent(counts[key] / total)})</span>
+              {counts[key]}{" "}
+              <span className="font-normal text-muted-foreground">({formatPercent(counts[key] / total)})</span>
             </span>
           </li>
         ))}

@@ -12,11 +12,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
-import {
-  FIXTURE_CREATORS,
-  generateCreatorPosts,
-  type FixturePost,
-} from "../lib/fixtures/creators";
+import { FIXTURE_CREATORS, generateCreatorPosts, type FixturePost } from "../lib/fixtures/creators";
 import { requireDatabaseUrl } from "./env";
 
 const DEMO_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001";

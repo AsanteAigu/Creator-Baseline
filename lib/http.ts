@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth/session";
 import { AppError } from "@/lib/errors";
 
-/** The single error shape for every API response (BUILD_PROMPT §9). */
+/** The single error shape for every API response (SPECIFICATION §9). */
 export interface ErrorBody {
   error: { code: string; message: string; fields?: Record<string, string> };
 }

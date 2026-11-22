@@ -1,7 +1,7 @@
 import { Banner } from "@/components/banner";
 import { PageHeader } from "@/components/page-header";
-import { PeoplePanel } from "@/components/people-panel";
-import { SettingsForm, type SettingsValues } from "@/components/settings-form";
+import { PeoplePanel } from "@/components/settings/people-panel";
+import { SettingsForm, type SettingsValues } from "@/components/settings/settings-form";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { formatDateTime } from "@/lib/format";
 import { listPeople } from "@/lib/services/memberService";

@@ -190,8 +190,7 @@ export function generateCreatorPosts(creator: FixtureCreator, now: Date): Fixtur
     const rates = BASE_RATES[format];
     const rateBoost = i === viralIndex ? 2.2 : 1;
     const likes = Math.round(reach * rates.likes * jitter(rng, 0.25) * rateBoost);
-    const comments =
-      i === zeroCommentsIndex ? 0 : Math.round(reach * rates.comments * jitter(rng, 0.4) * rateBoost);
+    const comments = i === zeroCommentsIndex ? 0 : Math.round(reach * rates.comments * jitter(rng, 0.4) * rateBoost);
     const shares = Math.round(reach * rates.shares * jitter(rng, 0.45) * rateBoost);
     const saves = Math.round(reach * rates.saves * jitter(rng, 0.4) * rateBoost);
 

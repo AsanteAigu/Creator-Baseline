@@ -1,7 +1,7 @@
 import type { Tx } from "@/lib/db/client";
 
 /**
- * Read-only probes for `GET /api/health` (BUILD_PROMPT §9). The migration ledger
+ * Read-only probes for `GET /api/health` (SPECIFICATION §9). The migration ledger
  * lives outside `public` and is not exposed through RLS, so this repo is system-scope.
  */
 export function healthRepo(tx: Tx) {

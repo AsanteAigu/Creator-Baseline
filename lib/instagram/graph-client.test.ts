@@ -6,8 +6,7 @@ type Handler = (url: URL, init?: RequestInit) => Response | Promise<Response>;
 
 function fakeFetch(handler: Handler): typeof fetch {
   return async (input, init) => {
-    const url =
-      input instanceof URL ? input : typeof input === "string" ? new URL(input) : new URL(input.url);
+    const url = input instanceof URL ? input : typeof input === "string" ? new URL(input) : new URL(input.url);
     return handler(url, init);
   };
 }

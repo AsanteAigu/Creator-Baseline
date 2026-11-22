@@ -129,24 +129,26 @@ export function runsRepo(tx: Tx) {
     },
 
     /** Health view: one row per creator in a workspace, with its latest run if any. */
-    async latestForWorkspace(workspaceId: string): Promise<
-      { creatorId: string; username: string; creatorStatus: CreatorStatus; run: Run | null }[]
-    > {
-      const rows = await tx<{
-        creator_id: string;
-        username: string;
-        creator_status: CreatorStatus;
-        run_id: string | null;
-        trigger: RunTrigger | null;
-        status: RunStatus | null;
-        window_start: Date | null;
-        started_at: Date | null;
-        finished_at: Date | null;
-        error_code: string | null;
-        error_message: string | null;
-        posts_seen: number | null;
-        posts_scored: number | null;
-      }[]>`
+    async latestForWorkspace(
+      workspaceId: string,
+    ): Promise<{ creatorId: string; username: string; creatorStatus: CreatorStatus; run: Run | null }[]> {
+      const rows = await tx<
+        {
+          creator_id: string;
+          username: string;
+          creator_status: CreatorStatus;
+          run_id: string | null;
+          trigger: RunTrigger | null;
+          status: RunStatus | null;
+          window_start: Date | null;
+          started_at: Date | null;
+          finished_at: Date | null;
+          error_code: string | null;
+          error_message: string | null;
+          posts_seen: number | null;
+          posts_scored: number | null;
+        }[]
+      >`
         select c.id as creator_id, c.username, c.status as creator_status,
                r.id as run_id, r.trigger, r.status, r.window_start, r.started_at, r.finished_at,
                r.error_code, r.error_message, r.posts_seen, r.posts_scored

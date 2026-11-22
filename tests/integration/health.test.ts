@@ -25,11 +25,7 @@ describe("GET /api/health report", () => {
     expect(report.build).toBeTruthy();
     expect(report.migrations?.applied).toBeGreaterThanOrEqual(1);
     expect(report.migrations?.latest).toMatch(/^\d{14}_/);
-    expect(report.creators.map((c) => c.username).sort()).toEqual([
-      "ivy.interiors",
-      "maya.cooks.uk",
-      "theo.trains",
-    ]);
+    expect(report.creators.map((c) => c.username).sort()).toEqual(["ivy.interiors", "maya.cooks.uk", "theo.trains"]);
     expect(["ok", "degraded"]).toContain(report.status);
   });
 

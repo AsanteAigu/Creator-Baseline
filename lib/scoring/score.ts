@@ -106,11 +106,7 @@ export function scorePost(
 }
 
 /** Scores every post of a creator in one pass. Pure: same inputs, same outputs. */
-export function scoreAll(
-  posts: readonly ScorablePost[],
-  config: ScoringConfig,
-  now: Date,
-): ScoreResult[] {
+export function scoreAll(posts: readonly ScorablePost[], config: ScoringConfig, now: Date): ScoreResult[] {
   return posts.map((p) => scorePost(p, posts, config, now));
 }
 

@@ -105,11 +105,18 @@ describe("GeminiProvider fallback", () => {
       sleep: async () => {},
       fetch: async (url) => {
         seen.push(String(url).split("/models/")[1] ?? "");
-        return String(url).includes("/main:") ? ok({}, 503) : ok({ candidates: [{ content: { parts: [{ text: "{}" }] } }] });
+        return String(url).includes("/main:")
+          ? ok({}, 503)
+          : ok({ candidates: [{ content: { parts: [{ text: "{}" }] } }] });
       },
     });
     const res = await provider.complete(REQ);
-    expect(seen).toEqual(["main:generateContent", "main:generateContent", "main:generateContent", "lite:generateContent"]);
+    expect(seen).toEqual([
+      "main:generateContent",
+      "main:generateContent",
+      "main:generateContent",
+      "lite:generateContent",
+    ]);
     expect(res.model).toBe("lite");
   });
 

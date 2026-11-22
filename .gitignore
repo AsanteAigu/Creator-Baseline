@@ -29,3 +29,6 @@ creator-baseline-claude-code-prompt.md
 
 # Playwright screenshots and traces from UI audits
 .playwright-artifacts/
+
+# local tooling notes, not part of the project
+CLAUDE SKILLS/

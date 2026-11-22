@@ -1,15 +1,25 @@
-import { AlertTriangle, ArrowUpRight, Eye, Gauge, ImageIcon, KeyRound, RefreshCw, ShieldAlert, UserPlus } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Eye,
+  Gauge,
+  ImageIcon,
+  KeyRound,
+  RefreshCw,
+  ShieldAlert,
+  UserPlus,
+} from "lucide-react";
 import Link from "next/link";
 import { Banner } from "@/components/banner";
 import { StatGroup, StatTile } from "@/components/charts/stat-tile";
 import { CreatorAvatar } from "@/components/creator-avatar";
 import { EmptyState } from "@/components/empty-state";
-import { Sparkline } from "@/components/sparkline";
+import { Sparkline } from "@/components/charts/sparkline";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
-import { toDelta } from "@/app/(app)/stat-helpers";
+import { toDelta } from "@/components/charts/stat-delta";
 import { formatCompact, formatDateTime, formatNumber, formatPercent, formatScore } from "@/lib/format";
 import { compareValues } from "@/lib/services/analytics";
 import { listCreatorCards } from "@/lib/services/creatorService";
@@ -26,11 +36,7 @@ const CONNECT_ERRORS: Record<string, string> = {
     "We couldn't connect that account. Check that it is an Instagram professional account in your Meta business portfolio, that you selected exactly one account, then try again.",
 };
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ connect?: string }>;
-}) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ connect?: string }> }) {
   const userId = await requirePageUser();
   const result = await withPageErrors(() => listCreatorCards(userId));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
@@ -50,7 +56,9 @@ export default async function DashboardPage({
         <HeroMotif />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-display text-[32px] font-medium leading-tight tracking-tight sm:text-[40px]">Overview</h1>
+            <h1 className="font-display text-[32px] font-medium leading-tight tracking-tight sm:text-[40px]">
+              Overview
+            </h1>
             <p className="mt-1 max-w-xl text-sm text-foreground/70 sm:text-[15px]">
               Every account measured against its own usual results. Last 28 days.
             </p>
@@ -78,8 +86,12 @@ export default async function DashboardPage({
       ) : null}
 
       {failed.length > 0 ? (
-        <Banner tone="error" title={`The last update didn't finish for ${failed.map((c) => `@${c.creator.username}`).join(", ")}.`}>
-          {failed[0]?.latestRun?.errorMessage ?? "We'll try again at the next scheduled update."} Earlier scores are still shown.
+        <Banner
+          tone="error"
+          title={`The last update didn't finish for ${failed.map((c) => `@${c.creator.username}`).join(", ")}.`}
+        >
+          {failed[0]?.latestRun?.errorMessage ?? "We'll try again at the next scheduled update."} Earlier scores are
+          still shown.
         </Banner>
       ) : null}
 
@@ -162,11 +174,15 @@ export default async function DashboardPage({
                       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border/70 text-xs">
                         <div className="bg-muted/70 px-3 py-2.5">
                           <dt className="text-muted-foreground">Reach, 28 days</dt>
-                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">{formatCompact(period.totalReach)}</dd>
+                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">
+                            {formatCompact(period.totalReach)}
+                          </dd>
                         </div>
                         <div className="bg-muted/70 px-3 py-2.5">
                           <dt className="text-muted-foreground">Posts, 28 days</dt>
-                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">{formatNumber(period.posts)}</dd>
+                          <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">
+                            {formatNumber(period.posts)}
+                          </dd>
                         </div>
                       </dl>
                       <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -196,7 +212,8 @@ export default async function DashboardPage({
           {portfolio.needsAttention > 0 ? (
             <p className="flex items-center gap-2 rounded-xl bg-card px-4 py-3 text-xs text-muted-foreground shadow-card">
               <ShieldAlert aria-hidden className="size-4" />
-              {portfolio.needsAttention} account{portfolio.needsAttention === 1 ? " needs" : "s need"} attention. Open the account to reconnect or retry.
+              {portfolio.needsAttention} account{portfolio.needsAttention === 1 ? " needs" : "s need"} attention. Open
+              the account to reconnect or retry.
             </p>
           ) : null}
         </>
@@ -225,7 +242,10 @@ function HeroMotif() {
         </linearGradient>
       </defs>
       <line x1="0" x2="560" y1="130" y2="130" stroke="#1d2433" strokeOpacity="0.18" strokeDasharray="4 6" />
-      <path d="M0 160 L80 140 L150 150 L230 110 L300 125 L380 80 L450 95 L560 40 L560 200 L0 200 Z" fill="url(#hero-fill)" />
+      <path
+        d="M0 160 L80 140 L150 150 L230 110 L300 125 L380 80 L450 95 L560 40 L560 200 L0 200 Z"
+        fill="url(#hero-fill)"
+      />
       <path
         d="M0 160 L80 140 L150 150 L230 110 L300 125 L380 80 L450 95 L560 40"
         fill="none"

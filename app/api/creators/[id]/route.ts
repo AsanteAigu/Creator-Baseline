@@ -4,7 +4,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { deleteCreator } from "@/lib/services/deletionService";
 
 /**
- * DELETE /api/creators/:id - disconnect and purge (BUILD_PROMPT §9, §11).
+ * DELETE /api/creators/:id - disconnect and purge (SPECIFICATION §9, §11).
  *
  * The same service the account page's button calls (D-033). Owner/admin only; 5 per user
  * per 10 minutes, because each call revokes a token at Meta.

@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { callApi } from "./api-client";
+import { callApi } from "@/components/api-client";
 
 /**
  * Disconnect and delete, in two steps so a mis-tap cannot destroy a year of baselines.

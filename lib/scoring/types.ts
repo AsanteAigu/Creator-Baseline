@@ -21,7 +21,7 @@ export interface ScoringConfig {
   medianWindow: number;
 }
 
-/** The metric snapshot the rates are derived from (BUILD_PROMPT §5). */
+/** The metric snapshot the rates are derived from (SPECIFICATION §5). */
 export interface MetricSnapshot {
   reach: number;
   likes: number;

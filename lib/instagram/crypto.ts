@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
- * Instagram tokens at rest: AES-256-GCM (BUILD_PROMPT §6). The 16-byte auth tag is appended
+ * Instagram tokens at rest: AES-256-GCM (SPECIFICATION §6). The 16-byte auth tag is appended
  * to the ciphertext so the schema needs only the two columns it already has.
  * Nothing in this file logs; error messages never include key, token or ciphertext.
  */
@@ -34,7 +34,9 @@ export function decryptToken(enc: EncryptedToken, key: Buffer): string {
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(body.subarray(body.length - TAG_BYTES));
   try {
-    return Buffer.concat([decipher.update(body.subarray(0, body.length - TAG_BYTES)), decipher.final()]).toString("utf8");
+    return Buffer.concat([decipher.update(body.subarray(0, body.length - TAG_BYTES)), decipher.final()]).toString(
+      "utf8",
+    );
   } catch {
     // GCM authentication failed: wrong key or tampered row.
     throw new Error("stored token could not be decrypted");

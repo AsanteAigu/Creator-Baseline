@@ -1,10 +1,4 @@
-import {
-  GRAPH_API_VERSION,
-  GRAPH_HOST,
-  INSTAGRAM_API_HOST,
-  INSTAGRAM_GRAPH_HOST,
-  GraphClient,
-} from "./graph-client";
+import { GRAPH_API_VERSION, GRAPH_HOST, INSTAGRAM_API_HOST, INSTAGRAM_GRAPH_HOST, GraphClient } from "./graph-client";
 import { insightMetricsFor, mapInsights, type GraphInsightEntry } from "./metrics";
 import {
   type AccountHint,
@@ -63,8 +57,7 @@ export const OAUTH_SCOPES = [
 ] as const;
 
 const MEDIA_FIELDS = "id,media_type,media_product_type,permalink,timestamp,caption,thumbnail_url";
-const ACCOUNT_FIELDS =
-  "id,name,instagram_business_account{id,username,name,profile_picture_url}";
+const ACCOUNT_FIELDS = "id,name,instagram_business_account{id,username,name,profile_picture_url}";
 const PAGE_SIZE = 50;
 /** Bounds a runaway paging loop. 20 pages holds well over the 120-day lookback. */
 const MAX_PAGES = 20;
@@ -188,16 +181,13 @@ export class GraphInstagramSource implements InstagramSource {
 
     // Direct Instagram Login:
     // 1. Exchange authorization code for short-lived token via POST to api.instagram.com
-    const shortLived = await this.client.postForm(
-      `${INSTAGRAM_API_HOST}/oauth/access_token`,
-      {
-        client_id: this.config.appId,
-        client_secret: this.config.appSecret,
-        grant_type: "authorization_code",
-        redirect_uri: this.config.redirectUri,
-        code,
-      },
-    );
+    const shortLived = await this.client.postForm(`${INSTAGRAM_API_HOST}/oauth/access_token`, {
+      client_id: this.config.appId,
+      client_secret: this.config.appSecret,
+      grant_type: "authorization_code",
+      redirect_uri: this.config.redirectUri,
+      code,
+    });
     // The user_id here is app-scoped, not the account id the media endpoints take, so it is
     // ignored; the account id comes from /me below.
     const shortToken = stringField(unwrapData(shortLived), "access_token");
@@ -211,11 +201,7 @@ export class GraphInstagramSource implements InstagramSource {
     const expiresAt = new Date(Date.now() + longLived.expiresInSeconds * 1000);
 
     // 3. Directly get Instagram profile details (no Facebook Page needed)
-    const me = await this.client.get(
-      "/me",
-      { fields: "id,user_id,username,name,profile_picture_url" },
-      token,
-    );
+    const me = await this.client.get("/me", { fields: "id,user_id,username,name,profile_picture_url" }, token);
     const meRec = unwrapData(me);
     // `user_id` is the professional account id that /{ig-user-id}/media expects; `id` is
     // app-scoped and would make every later call fail, so there is no fallback to it.
@@ -320,7 +306,12 @@ export class GraphInstagramSource implements InstagramSource {
   private async exchangeUnified(code: string, hint?: AccountHint): Promise<ConnectedAccount> {
     const body = await this.client.get(
       "/oauth/access_token",
-      { client_id: this.config.appId, client_secret: this.config.appSecret, redirect_uri: this.config.redirectUri, code },
+      {
+        client_id: this.config.appId,
+        client_secret: this.config.appSecret,
+        redirect_uri: this.config.redirectUri,
+        code,
+      },
       null,
     );
     const rec = unwrapData(body);
@@ -464,9 +455,7 @@ function toRawMedia(item: Record<string, unknown>): RawMedia {
   }
   const product = stringField(item, "media_product_type");
   const mediaProductType: RawMediaProductType =
-    product !== null && PRODUCT_TYPES.has(product as RawMediaProductType)
-      ? (product as RawMediaProductType)
-      : "FEED";
+    product !== null && PRODUCT_TYPES.has(product as RawMediaProductType) ? (product as RawMediaProductType) : "FEED";
   return {
     id,
     mediaType: mediaType as RawMediaType,
@@ -493,10 +482,7 @@ function isInsightEntry(value: unknown): value is GraphInsightEntry {
  * A reconnect takes only the account being reconnected. A new connection takes every shared
  * account the workspace doesn't have yet, or the only one shared (a token refresh) (D-044).
  */
-function pickAccounts(
-  accounts: Record<string, unknown>[],
-  hint: AccountHint | undefined,
-): Record<string, unknown>[] {
+function pickAccounts(accounts: Record<string, unknown>[], hint: AccountHint | undefined): Record<string, unknown>[] {
   if (hint?.preferIgUserId !== undefined) {
     return accounts.filter((a) => stringField(a, "id") === hint.preferIgUserId);
   }

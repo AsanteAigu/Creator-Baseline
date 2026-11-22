@@ -1,12 +1,13 @@
-# BUILD PROMPT — Creator Baseline v1
+# Creator Baseline v1 — Technical specification
 
-Copy this file into the root of an empty repo as `BUILD_PROMPT.md`, and put the client's
-requirements document in `docs/requirements.md` (a plain-text/Markdown export of the Word file).
+The engineering specification Creator Baseline v1 was built against: architecture, data
+model, the exact scoring formulas, integrations, security, tests, the phased build order
+and acceptance criteria.
 
-Start the session with:
-
-> Read BUILD_PROMPT.md and docs/requirements.md in full. Then follow the Build Order.
-> Do Phase 0 only, then stop and report.
+`docs/requirements.md` is the client's requirements document and the source of truth for
+**what** the product does. This file is the source of truth for **how** it is built. Where
+the two conflict, this file wins on architecture and the requirements win on behaviour;
+every such conflict and every judgement call is logged in `docs/DECISIONS.md`.
 
 ---
 

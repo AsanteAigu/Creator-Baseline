@@ -1,12 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { AppError, forbidden, notFound } from "@/lib/errors";
-import {
-  asSystem,
-  withRepos,
-  type Invite,
-  type InviteRole,
-  type MemberView,
-} from "@/lib/repositories";
+import { asSystem, withRepos, type Invite, type InviteRole, type MemberView } from "@/lib/repositories";
 import { getWorkspaceContext, type WorkspaceContext } from "./creatorService";
 
 /**
@@ -130,8 +124,7 @@ export interface InvitePreview {
 export async function previewInvite(token: string, now = new Date()): Promise<InvitePreview> {
   const invite = await withRepos(asSystem(), (r) => r.invites.findByTokenHash(hashInviteToken(token)));
   if (!invite) return { status: "invalid", workspaceName: null, email: null, role: null };
-  const status: InviteStatus =
-    invite.acceptedAt !== null ? "used" : invite.expiresAt <= now ? "expired" : "valid";
+  const status: InviteStatus = invite.acceptedAt !== null ? "used" : invite.expiresAt <= now ? "expired" : "valid";
   return { status, workspaceName: invite.workspaceName, email: invite.email, role: invite.role };
 }
 

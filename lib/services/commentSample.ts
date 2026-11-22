@@ -1,5 +1,5 @@
 /**
- * Data minimisation for comments (BUILD_PROMPT §7/§11): strip usernames and links, cap
+ * Data minimisation for comments (SPECIFICATION §7/§11): strip usernames and links, cap
  * length, dedupe, cap the sample. The result exists only in memory for one AI call.
  */
 

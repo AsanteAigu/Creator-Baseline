@@ -55,10 +55,7 @@ function parse<T>(schema: z.ZodType<T>, text: string): Parsed<T> {
  * prompt; here: strip fences, validate with Zod, retry once feeding the validation error
  * back, then throw AiOutputError.
  */
-export async function generateStructured<T>(
-  schema: z.ZodType<T>,
-  call: StructuredCall,
-): Promise<StructuredResult<T>> {
+export async function generateStructured<T>(schema: z.ZodType<T>, call: StructuredCall): Promise<StructuredResult<T>> {
   const { provider, request, onAttempt } = call;
   const messages: AiRequest["messages"] = [{ role: "user", content: request.user }];
   let lastError = "";

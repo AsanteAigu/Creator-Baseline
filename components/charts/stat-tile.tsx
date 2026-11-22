@@ -62,7 +62,9 @@ export function StatTile({
       </p>
       {delta ? (
         <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-          <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-medium tabular-nums", tone)}>
+          <span
+            className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-medium tabular-nums", tone)}
+          >
             <Arrow aria-hidden className="size-3.5" />
             {delta.direction === "flat" ? "No change" : delta.text}
           </span>

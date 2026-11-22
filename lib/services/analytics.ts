@@ -139,10 +139,18 @@ export function buildAccountAnalytics(
   const recent = within(posts, new Date(now.getTime() - breakdownDays * DAY_MS), now);
   const weekCount = WEEKS_FOR_RANGE[days];
 
-  const byFormat = FORMATS.map((f) => summariseGroup(f, recent.filter((p) => p.format === f))).filter(
-    (g) => g.posts > 0,
+  const byFormat = FORMATS.map((f) =>
+    summariseGroup(
+      f,
+      recent.filter((p) => p.format === f),
+    ),
+  ).filter((g) => g.posts > 0);
+  const byWeekday = WEEKDAYS.map((day, i) =>
+    summariseGroup(
+      day,
+      recent.filter((p) => londonWeekday(p.postedAt) === i),
+    ),
   );
-  const byWeekday = WEEKDAYS.map((day, i) => summariseGroup(day, recent.filter((p) => londonWeekday(p.postedAt) === i)));
 
   const thisWeek = weekStartLondon(now);
   const weeks = Array.from({ length: weekCount }, (_, i) => addDaysIso(thisWeek, -7 * (weekCount - 1 - i)));

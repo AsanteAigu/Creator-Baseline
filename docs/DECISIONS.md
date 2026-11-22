@@ -7,7 +7,7 @@ should sign off.
 
 The client's `Social Media Growth Assistant Requirements Document.docx` was converted to
 `docs/requirements.md` (stdlib-only converter; Word equations flatten, so a note at the top
-restates them). The worked example in its §6 matches BUILD_PROMPT §5: 1.27, label Normal.
+restates them). The worked example in its §6 matches SPECIFICATION §5: 1.27, label Normal.
 
 ## D-002 — Local database without Docker
 
@@ -74,15 +74,15 @@ Why: real Supabase users must be created through the Auth admin API, which is Ph
 Decision: `typescript@~6.0`, not 7.x.
 Why: `typescript-eslint` (via `eslint-config-next`) supports `<6.1`. Revisit when it widens.
 
-## D-011 — "The creator can see their own results" (requirements §4 vs BUILD_PROMPT) (Confirm)
+## D-011 — "The creator can see their own results" (requirements §4 vs SPECIFICATION) (Confirm)
 
-Conflict: requirements §4 says each creator can see their own results; BUILD_PROMPT scopes
+Conflict: requirements §4 says each creator can see their own results; SPECIFICATION scopes
 access per workspace (the agency), with no per-creator visibility.
-Decision for now: workspace-level access only, as BUILD_PROMPT specifies. A creator invited
+Decision for now: workspace-level access only, as SPECIFICATION specifies. A creator invited
 as a workspace `viewer` would see all three accounts.
 Alternatives: a `creator_id` scope on `workspace_members` (or a `creator_access` table) and
 policies that honour it — a data-model change, so it needs sign-off before Phase 1 closes.
-Why: architecture follows BUILD_PROMPT; the behavioural gap is real and the client should choose.
+Why: architecture follows SPECIFICATION; the behavioural gap is real and the client should choose.
 
 ## D-012 — Post formats: reel, image, carousel only (Confirm)
 
@@ -93,7 +93,7 @@ API will be mapped to the nearest of the three (carousel of videos → carousel)
 
 ## D-013 — Requirements §10 "younger than 1 day" = `min_age_hours` 24
 
-Matches BUILD_PROMPT §5 edge case 1; stored as a setting, so it can change without a deploy.
+Matches SPECIFICATION §5 edge case 1; stored as a setting, so it can change without a deploy.
 
 ## D-014 — `InstagramSource.listComments` added to the §6 interface
 
@@ -385,7 +385,7 @@ Permissions: `instagram_basic`, `instagram_manage_insights`, `instagram_manage_c
 Alternatives: Facebook Login via `/me/accounts` (needs a Page per creator); Instagram Login (not
 offered to this app).
 
-## D-039 - Gemini added as an AI provider (overrides BUILD_PROMPT §2 "Anthropic") (Confirm)
+## D-039 - Gemini added as an AI provider (overrides SPECIFICATION §2 "Anthropic") (Confirm)
 
 The owner has no budget for an Anthropic key before the deadline; a Google AI Studio key on the
 free tier is available. `AI_PROVIDER=gemini` adds `lib/ai/gemini.ts` behind the existing

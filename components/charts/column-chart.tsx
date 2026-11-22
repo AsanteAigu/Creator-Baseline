@@ -78,52 +78,90 @@ export function ColumnChart({
     <figure className="flex flex-col gap-2">
       <div ref={ref} className="relative" style={{ minHeight: HEIGHT }}>
         {measured === null ? null : (
-        <svg
-          width={width}
-          height={HEIGHT}
-          className="block select-none rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-          role="img"
-          aria-label={`${ariaLabel} Use the left and right arrow keys to read each value.`}
-          aria-describedby={tableId}
-          tabIndex={0}
-          onKeyDown={onKey}
-          onBlur={() => setActive(null)}
-          onPointerLeave={() => setActive(null)}
-        >
-          {ticks.map((t) => (
-            <g key={t}>
-              <line x1={M.left} x2={width - M.right} y1={y(t)} y2={y(t)} stroke={t === 0 ? "var(--chart-axis)" : "var(--chart-grid)"} />
-              <text x={M.left - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} fill="var(--chart-muted)" className="tabular-nums">
-                {tickFmt(t)}
-              </text>
-            </g>
-          ))}
-          {reference ? (
-            <g>
-              <line x1={M.left} x2={width - M.right} y1={y(reference.value)} y2={y(reference.value)} stroke="var(--chart-muted)" strokeDasharray="3 3" />
-            </g>
-          ) : null}
-          {data.map((d, i) => {
-            const cx = xCenter(i);
-            const h = d.value === null ? 0 : Math.max(2, M.top + innerH - y(d.value));
-            return (
-              <g key={d.key} onPointerEnter={() => setActive(i)} onPointerDown={() => setActive(i)}>
-                {/* Hit target spans the whole band, bigger than the mark. */}
-                <rect x={cx - band / 2} y={M.top} width={band} height={innerH} fill={i === active ? "var(--chart-band)" : "transparent"} />
-                {d.value !== null ? (
-                  <path d={columnPath(cx - barW / 2, M.top + innerH - h, barW, h)} fill="var(--chart-1)" opacity={active === null || active === i ? 1 : 0.55} />
-                ) : (
-                  <line x1={cx - barW / 2} x2={cx + barW / 2} y1={M.top + innerH - 1} y2={M.top + innerH - 1} stroke="var(--chart-axis)" strokeWidth={2} />
-                )}
-                {(data.length - 1 - i) % showEvery === 0 ? (
-                  <text x={cx} y={HEIGHT - 8} textAnchor="middle" fontSize={11} fill="var(--chart-muted)">
-                    {d.label}
-                  </text>
-                ) : null}
+          <svg
+            width={width}
+            height={HEIGHT}
+            className="block select-none rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            role="img"
+            aria-label={`${ariaLabel} Use the left and right arrow keys to read each value.`}
+            aria-describedby={tableId}
+            tabIndex={0}
+            onKeyDown={onKey}
+            onBlur={() => setActive(null)}
+            onPointerLeave={() => setActive(null)}
+          >
+            {ticks.map((t) => (
+              <g key={t}>
+                <line
+                  x1={M.left}
+                  x2={width - M.right}
+                  y1={y(t)}
+                  y2={y(t)}
+                  stroke={t === 0 ? "var(--chart-axis)" : "var(--chart-grid)"}
+                />
+                <text
+                  x={M.left - 8}
+                  y={y(t)}
+                  dy="0.32em"
+                  textAnchor="end"
+                  fontSize={11}
+                  fill="var(--chart-muted)"
+                  className="tabular-nums"
+                >
+                  {tickFmt(t)}
+                </text>
               </g>
-            );
-          })}
-        </svg>
+            ))}
+            {reference ? (
+              <g>
+                <line
+                  x1={M.left}
+                  x2={width - M.right}
+                  y1={y(reference.value)}
+                  y2={y(reference.value)}
+                  stroke="var(--chart-muted)"
+                  strokeDasharray="3 3"
+                />
+              </g>
+            ) : null}
+            {data.map((d, i) => {
+              const cx = xCenter(i);
+              const h = d.value === null ? 0 : Math.max(2, M.top + innerH - y(d.value));
+              return (
+                <g key={d.key} onPointerEnter={() => setActive(i)} onPointerDown={() => setActive(i)}>
+                  {/* Hit target spans the whole band, bigger than the mark. */}
+                  <rect
+                    x={cx - band / 2}
+                    y={M.top}
+                    width={band}
+                    height={innerH}
+                    fill={i === active ? "var(--chart-band)" : "transparent"}
+                  />
+                  {d.value !== null ? (
+                    <path
+                      d={columnPath(cx - barW / 2, M.top + innerH - h, barW, h)}
+                      fill="var(--chart-1)"
+                      opacity={active === null || active === i ? 1 : 0.55}
+                    />
+                  ) : (
+                    <line
+                      x1={cx - barW / 2}
+                      x2={cx + barW / 2}
+                      y1={M.top + innerH - 1}
+                      y2={M.top + innerH - 1}
+                      stroke="var(--chart-axis)"
+                      strokeWidth={2}
+                    />
+                  )}
+                  {(data.length - 1 - i) % showEvery === 0 ? (
+                    <text x={cx} y={HEIGHT - 8} textAnchor="middle" fontSize={11} fill="var(--chart-muted)">
+                      {d.label}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            })}
+          </svg>
         )}
 
         {current && active !== null ? (
@@ -152,7 +190,9 @@ export function ColumnChart({
         </figcaption>
       ) : null}
       <details className="text-sm">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-medium text-muted-foreground hover:text-foreground">View as table</summary>
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-medium text-muted-foreground hover:text-foreground">
+          View as table
+        </summary>
         <table id={tableId} className="w-full text-left text-xs">
           <thead className="text-muted-foreground">
             <tr>
