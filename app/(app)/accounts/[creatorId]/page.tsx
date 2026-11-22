@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, KeyRound } from "lucide-react";
+import { CalendarDays, ChevronRight, Eye, Gauge, ImageIcon, KeyRound, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiDisclaimer } from "@/components/ai-disclaimer";
@@ -9,13 +9,30 @@ import { EmptyState } from "@/components/empty-state";
 import { LabelBadge } from "@/components/label-badge";
 import { PostRow } from "@/components/post-row";
 import { RunNowButton } from "@/components/run-now-button";
+import { ColumnChart } from "@/components/charts/column-chart";
+import { LabelMixBar } from "@/components/charts/label-mix-bar";
+import { StatTile } from "@/components/charts/stat-tile";
 import { ScoreTrendChart } from "@/components/score-trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
+import { toDelta } from "@/app/(app)/stat-helpers";
 import { uuidParam } from "@/lib/http";
-import { FORMAT_PLURAL, formatDate, formatDateTime, formatPercent, formatShortDate } from "@/lib/format";
+import {
+  FORMAT_LABELS,
+  FORMAT_PLURAL,
+  formatCompact,
+  formatDate,
+  formatDateTime,
+  formatIsoDay,
+  formatIsoShortDate,
+  formatNumber,
+  formatPercent,
+  formatScore,
+  formatShortDate,
+} from "@/lib/format";
+import { compareValues } from "@/lib/services/analytics";
 import type { Label } from "@/lib/scoring";
 import { getOverview } from "@/lib/services/creatorService";
 import { getSettings } from "@/lib/services/settingsService";
@@ -40,6 +57,7 @@ export default async function AccountPage({
   }));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
   const { overview: o, settings } = result;
+  const a = o.analytics;
   const canRun = o.role === "owner" || o.role === "admin";
   const name = o.creator.displayName ?? o.creator.username;
   const justConnected = (await searchParams).connected === "1";
@@ -49,19 +67,20 @@ export default async function AccountPage({
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link href="/dashboard" className="hover:underline">
-          Accounts
-        </Link>{" "}
-        / {name}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
+        <Link href="/dashboard" className="hover:text-foreground hover:underline">
+          Overview
+        </Link>
+        <ChevronRight aria-hidden className="size-3.5" />
+        <span className="truncate text-foreground">{name}</span>
       </nav>
 
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-3">
-          <CreatorAvatar name={name} className="size-12" />
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-1 items-center gap-4">
+          <CreatorAvatar name={name} className="size-14 text-base" />
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold tracking-tight">{name}</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{name}</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               @{o.creator.username}
               {o.creator.lastSyncedAt ? ` · Updated ${formatDateTime(o.creator.lastSyncedAt)}` : " · Not updated yet"}
               {o.nextUpdateAt ? ` · Next update around ${formatDateTime(o.nextUpdateAt)}` : ""}
@@ -115,6 +134,33 @@ export default async function AccountPage({
         </Banner>
       ) : null}
 
+      <section aria-label="Last 28 days" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile
+          label="Reach"
+          icon={Eye}
+          value={formatCompact(a.current.totalReach)}
+          delta={toDelta(compareValues(a.current.totalReach, a.previous.totalReach), "relative")}
+        />
+        <StatTile
+          label="Average score"
+          icon={Gauge}
+          value={a.current.averageScore === null ? "–" : formatScore(a.current.averageScore)}
+          delta={toDelta(compareValues(a.current.averageScore, a.previous.averageScore), "score")}
+        />
+        <StatTile
+          label="Posts published"
+          icon={ImageIcon}
+          value={formatNumber(a.current.posts)}
+          delta={toDelta(compareValues(a.current.posts, a.previous.posts), "relative")}
+        />
+        <StatTile
+          label="Typical reach per post"
+          icon={Users}
+          value={a.current.medianReach === null ? "–" : formatCompact(a.current.medianReach)}
+          delta={toDelta(compareValues(a.current.medianReach, a.previous.medianReach), "relative")}
+        />
+      </section>
+
       <Card>
         <CardHeader>
           <CardTitle>Score trend</CardTitle>
@@ -155,6 +201,93 @@ export default async function AccountPage({
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Weekly reach</CardTitle>
+            <CardDescription>Accounts reached by the posts published each week, last 12 weeks.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ColumnChart
+              ariaLabel="Weekly reach for the last 12 weeks."
+              valueFormat="compact"
+              groupHeading="Week starting"
+              valueHeading="Reach"
+              data={a.weeklyReach.map((w) => ({
+                key: w.weekStart,
+                label: formatIsoShortDate(w.weekStart),
+                value: w.posts === 0 ? null : w.reach,
+                valueText: w.posts === 0 ? "No posts" : formatCompact(w.reach),
+                details: [`Week of ${formatIsoDay(w.weekStart)}`, `${w.posts} post${w.posts === 1 ? "" : "s"}`],
+              }))}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Post outcomes</CardTitle>
+            <CardDescription>How the last 28 days&apos; scored posts compare with this creator&apos;s usual.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LabelMixBar counts={a.labelMix} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Score by format</CardTitle>
+            <CardDescription>Average score per format, last 90 days.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {a.byFormat.length > 0 ? (
+              <ColumnChart
+                ariaLabel="Average score by post format over the last 90 days."
+                valueFormat="score"
+                groupHeading="Format"
+                valueHeading="Average score"
+                reference={{ value: 1, label: "1.00 is this creator's usual post" }}
+                data={a.byFormat.map((g) => ({
+                  key: g.key,
+                  label: FORMAT_LABELS[g.key] ?? g.key,
+                  value: g.averageScore,
+                  valueText: g.averageScore !== null ? formatScore(g.averageScore) : g.posts > 0 ? "Not scored yet" : "No posts",
+                  details: [
+                    `${g.scored} scored of ${g.posts} post${g.posts === 1 ? "" : "s"}`,
+                    g.medianReach === null ? "No reach data" : `Typical reach ${formatCompact(g.medianReach)}`,
+                  ],
+                }))}
+              />
+            ) : (
+              <EmptyState title="No posts in the last 90 days." />
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Score by day posted</CardTitle>
+            <CardDescription>Average score by the London weekday a post went out, last 90 days.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ColumnChart
+              ariaLabel="Average score by weekday posted over the last 90 days."
+              valueFormat="score"
+              groupHeading="Day"
+              valueHeading="Average score"
+              reference={{ value: 1, label: "1.00 is this creator's usual post" }}
+              data={a.byWeekday.map((g) => ({
+                key: g.key,
+                label: g.key,
+                value: g.averageScore,
+                valueText: g.averageScore !== null ? formatScore(g.averageScore) : g.posts > 0 ? "Not scored yet" : "No posts",
+                details: [`${g.scored} scored of ${g.posts} post${g.posts === 1 ? "" : "s"}`],
+              }))}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <PostListCard title="Top posts" description="Highest scores in the last four weeks." posts={o.top} emphasis="max" />
@@ -200,9 +333,9 @@ export default async function AccountPage({
               <>
                 <div>
                   <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full" aria-hidden>
-                    <div className="bg-[#0ca30c]" style={{ width: `${(o.insight.positive / sentimentTotal) * 100}%` }} />
-                    <div className="bg-[#b5b5b0]" style={{ width: `${(o.insight.neutral / sentimentTotal) * 100}%` }} />
-                    <div className="bg-[#d03b3b]" style={{ width: `${(o.insight.negative / sentimentTotal) * 100}%` }} />
+                    <div className="bg-good" style={{ width: `${(o.insight.positive / sentimentTotal) * 100}%` }} />
+                    <div className="bg-[var(--status-neutral)]" style={{ width: `${(o.insight.neutral / sentimentTotal) * 100}%` }} />
+                    <div className="bg-critical" style={{ width: `${(o.insight.negative / sentimentTotal) * 100}%` }} />
                   </div>
                   <p className="mt-2 text-sm">
                     {(["positive", "neutral", "negative"] as const).map((k, i) => (

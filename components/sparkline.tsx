@@ -20,7 +20,7 @@ export function Sparkline({ values }: { values: number[] }) {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="h-9 w-[120px] shrink-0 overflow-visible"
+      className="h-9 w-[120px] shrink-0 overflow-visible text-chart-1"
       role="img"
       aria-label={`Last ${values.length} scores, from ${formatScore(first)} to ${formatScore(last)}`}
     >

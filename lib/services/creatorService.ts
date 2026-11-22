@@ -16,6 +16,7 @@ import {
   type TrendPoint,
 } from "@/lib/repositories";
 import { MIN_BASELINE_POSTS, type Label, type PostFormat } from "@/lib/scoring";
+import { ANALYTICS_PERIOD_DAYS, buildAccountAnalytics, summarisePeriod, within, type AccountAnalytics, type PeriodSummary } from "./analytics";
 import { REPORT_PERIOD_DAYS, topAndBottom } from "./reportService";
 import { ingestCreator, type IngestResult } from "./runService";
 import { intervalHours } from "./time";
@@ -42,27 +43,57 @@ export interface CreatorCard {
   /** Scores of the most recently scored posts, oldest first. */
   trend: number[];
   averageScore: number | null;
+  /** The last 28 days and the 28 days before, for the portfolio summary. */
+  period: PeriodSummary;
+  previousPeriod: PeriodSummary;
 }
 
-export async function listCreatorCards(userId: string): Promise<{ context: WorkspaceContext; cards: CreatorCard[] }> {
+export interface PortfolioSummary {
+  accounts: number;
+  current: PeriodSummary;
+  previous: PeriodSummary;
+  /** Accounts that need reconnecting or whose last update failed. */
+  needsAttention: number;
+}
+
+export async function listCreatorCards(
+  userId: string,
+  now = new Date(),
+): Promise<{ context: WorkspaceContext; cards: CreatorCard[]; portfolio: PortfolioSummary }> {
   const context = await getWorkspaceContext(userId);
-  const cards = await withRepos(asUser(userId), async (r) => {
+  const periodStart = new Date(now.getTime() - ANALYTICS_PERIOD_DAYS * DAY_MS);
+  const previousStart = new Date(periodStart.getTime() - ANALYTICS_PERIOD_DAYS * DAY_MS);
+  const { cards, allPosts } = await withRepos(asUser(userId), async (r) => {
     const creators = await r.creators.listForWorkspace(context.workspaceId);
     const out: CreatorCard[] = [];
+    const collected: { current: PostView[]; previous: PostView[] } = { current: [], previous: [] };
     for (const creator of creators) {
       const latestRun = await r.runs.latestFor(creator.id);
       const scored = await latestTrend(r, creator.id);
       const recent = scored.slice(-CARD_TREND_POINTS).map((p) => p.score);
+      const posts = await r.posts.listViews(creator.id, { from: previousStart }, 200, null);
+      const current = within(posts, periodStart, now);
+      const previous = within(posts, previousStart, periodStart);
+      collected.current.push(...current);
+      collected.previous.push(...previous);
       out.push({
         creator,
         latestRun,
         trend: recent,
         averageScore: recent.length > 0 ? recent.reduce((a, b) => a + b, 0) / recent.length : null,
+        period: summarisePeriod(current),
+        previousPeriod: summarisePeriod(previous),
       });
     }
-    return out;
+    return { cards: out, allPosts: collected };
   });
-  return { context, cards };
+  const portfolio: PortfolioSummary = {
+    accounts: cards.length,
+    current: summarisePeriod(allPosts.current),
+    previous: summarisePeriod(allPosts.previous),
+    needsAttention: cards.filter((c) => c.creator.status === "needs_reauth" || c.latestRun?.status === "failed").length,
+  };
+  return { context, cards, portfolio };
 }
 
 async function latestTrend(r: Repos, creatorId: string): Promise<TrendPoint[]> {
@@ -94,6 +125,7 @@ export interface CreatorOverview {
   insight: CommentInsight | null;
   /** Why AI sections are missing or stale, if they are. */
   aiNote: { code: string; message: string } | null;
+  analytics: AccountAnalytics;
 }
 
 async function requireCreator(r: Repos, creatorId: string): Promise<Creator> {
@@ -150,6 +182,7 @@ export async function getOverview(userId: string, creatorId: string, now = new D
         report.periodEnd.getTime() === lastSucceededRun.windowStart.getTime(),
       insight,
       aiNote,
+      analytics: buildAccountAnalytics(posts, now),
     };
   });
 }

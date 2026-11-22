@@ -42,3 +42,10 @@ export const FORMAT_PLURAL: Record<string, string> = {
   image: "photos",
   carousel: "carousels",
 };
+/** Signed change for deltas, e.g. "+12.4%" or "−3.0%". */
+export const formatSignedPercent = (fraction: number) => `${fraction > 0 ? "+" : fraction < 0 ? "−" : ""}${percentFmt.format(Math.abs(fraction))}`;
+/** Signed score difference, e.g. "+0.08". */
+export const formatSignedScore = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(2)}`;
+const isoShortFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
+/** "10 Nov" for a London calendar date (YYYY-MM-DD). */
+export const formatIsoShortDate = (iso: string) => isoShortFmt.format(new Date(`${iso}T12:00:00Z`));

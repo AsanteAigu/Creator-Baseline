@@ -26,3 +26,6 @@ playwright-report/
 # client originals kept beside the repo, not in it (docs/requirements.md is the tracked copy)
 *.docx
 creator-baseline-claude-code-prompt.md
+
+# Playwright screenshots and traces from UI audits
+.playwright-artifacts/

@@ -454,3 +454,18 @@ the InstagramError code and its client-safe message.
 Alternatives: create a creator for every shared account in one go (surprising, and a creator
 login would end up linked to several accounts); make each creator use a separate portfolio
 (impractical for an agency's own test accounts).
+
+## D-042 - Analytics views and visual polish, hand-built SVG charts
+
+22 Nov 2026: added a portfolio summary to the overview (reach, average score, posts and strong
+share over 28 days, each against the previous 28 days) and to each account page (the same tiles,
+weekly reach for 12 weeks, post-outcome mix, and average score by format and by London weekday
+over 90 days). The aggregates live in `lib/services/analytics.ts` and only summarise existing
+scores and labels; nothing new is scored or labelled. Charts follow the data-viz reference palette:
+one series hue, status colours only for strong/normal/weak (always with icon and word), a 1.00
+reference line, hover/keyboard tooltips and a table view. Charts measure their container and draw
+in real pixels, so text no longer scales with the screen. Values are formatted on the server to
+avoid hydration mismatches between Node and browser number formatting.
+
+Alternatives: Recharts (a new dependency, harder to hold to the palette and accessibility rules;
+the existing charts were already hand-built SVG); a scaled viewBox (oversized labels on desktop).
