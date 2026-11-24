@@ -3,6 +3,7 @@ import { AiDisclaimer } from "@/components/ai-disclaimer";
 import { Banner } from "@/components/banner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { PlanTracker } from "@/components/plan/plan-tracker";
 import { RegeneratePlanButton } from "@/components/plan/regenerate-plan-button";
 import { SuggestionToggle } from "@/components/plan/suggestion-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -11,25 +12,45 @@ import { requirePageUser, withPageErrors } from "@/app/(app)/page-helpers";
 import { FORMAT_LABELS, formatIsoDay } from "@/lib/format";
 import { uuidParam } from "@/lib/http";
 import { getOverview } from "@/lib/services/creatorService";
-import { getCurrentPlan } from "@/lib/services/planService";
+import { getCurrentPlan, getPlanProgress, type ReplacementNote } from "@/lib/services/planService";
 import { weekDates, weekStartLondon } from "@/lib/services/time";
 
 export const metadata = { title: "Content plan" };
 
-export default async function PlanPage({ params }: { params: Promise<{ creatorId: string }> }) {
+/** Shown after an idea is marked used. Fixed codes, so the URL can never inject text. */
+const NOTICES: Record<ReplacementNote | "replaced", { tone: "info" | "warn"; title: string }> = {
+  replaced: { tone: "info", title: "Marked as used. It is remembered, and a new idea now takes its day." },
+  day_passed: { tone: "info", title: "Marked as used. That day has passed, so no new idea was written for it." },
+  budget: { tone: "warn", title: "Marked as used. No new idea was written: the monthly AI budget is reached." },
+  ai_failed: { tone: "warn", title: "Marked as used, but a new idea couldn't be written. Use Refresh ideas to try again." },
+  rate_limited: { tone: "warn", title: "Marked as used. New ideas are paused for a few minutes; use Refresh ideas later." },
+};
+
+export default async function PlanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ creatorId: string }>;
+  searchParams: Promise<{ notice?: string }>;
+}) {
   const { creatorId } = await params;
+  const { notice: noticeKey } = await searchParams;
+  const notice = noticeKey && noticeKey in NOTICES ? NOTICES[noticeKey as keyof typeof NOTICES] : null;
   if (!uuidParam.safeParse(creatorId).success) notFound();
   const userId = await requirePageUser();
   const result = await withPageErrors(async () => ({
     overview: await getOverview(userId, creatorId),
     plan: await getCurrentPlan(userId, creatorId),
+    progress: await getPlanProgress(userId, creatorId),
   }));
   if ("message" in result) return <Banner tone="warn" title={result.message} />;
-  const { overview: o, plan } = result;
+  const { overview: o, plan, progress } = result;
   const name = o.creator.displayName ?? o.creator.username;
   const canRegenerate = o.role === "owner" || o.role === "admin";
   const days = weekDates(plan?.weekStart ?? weekStartLondon(new Date()));
-  const decided = plan?.suggestions.filter((s) => s.status !== "proposed").length ?? 0;
+  // Used ideas have left their day for the tracker below (D-047).
+  const active = plan?.suggestions.filter((s) => s.status !== "used") ?? [];
+  const usedThisWeek = (plan?.suggestions.length ?? 0) - active.length;
 
   return (
     <>
@@ -41,13 +62,15 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
         ]}
         eyebrow={`@${o.creator.username} · week of ${formatIsoDay(days[0] ?? "")}`}
         title="This week's plan"
-        description={plan ? `${decided} of ${plan.suggestions.length} ideas marked as used or not used` : undefined}
+        description={plan ? `${active.length} ideas planned, ${usedThisWeek} used this week` : undefined}
         actions={
           canRegenerate ? (
             <RegeneratePlanButton creatorId={o.creator.id} label={plan ? "Refresh ideas" : "Create plan"} />
           ) : undefined
         }
       />
+
+      {notice ? <Banner tone={notice.tone} title={notice.title} /> : null}
 
       {o.aiNote?.code === "AI_BUDGET" ? (
         <Banner tone="info" title="AI summaries paused — monthly budget reached.">
@@ -68,6 +91,18 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
               This week&apos;s focus
             </p>
             <p className="max-w-3xl font-display text-lg leading-snug tracking-tight sm:text-xl">{plan.summary}</p>
+            {progress.profile.guidance.length > 0 ? (
+              <div className="flex flex-col gap-1.5 border-t border-foreground/10 pt-3">
+                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground/60">
+                  Built from this account&apos;s scores
+                </p>
+                <ul className="flex flex-col gap-1 text-sm text-foreground/80">
+                  {progress.profile.guidance.map((g) => (
+                    <li key={g}>{g}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <AiDisclaimer />
           </section>
 
@@ -76,7 +111,7 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
             aria-label="Week at a glance"
           >
             {days.map((day) => {
-              const ideas = plan.suggestions.filter((s) => s.suggestedDate === day);
+              const ideas = active.filter((s) => s.suggestedDate === day);
               return (
                 <li
                   key={day}
@@ -106,7 +141,7 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
           </ol>
 
           <ul className="grid gap-4 sm:grid-cols-2">
-            {plan.suggestions.map((s) => (
+            {active.map((s) => (
               <li key={s.id} id={`idea-${s.id}`} className="scroll-mt-20">
                 <Card className="flex h-full flex-col" data-testid="suggestion-card">
                   <CardHeader>
@@ -134,6 +169,8 @@ export default async function PlanPage({ params }: { params: Promise<{ creatorId
           </ul>
         </>
       )}
+
+      <PlanTracker tracking={progress.tracking} currentWeek={days} />
     </>
   );
 }

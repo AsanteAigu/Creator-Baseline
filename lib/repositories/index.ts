@@ -43,7 +43,7 @@ export function withRepos<T>(scope: Scope, fn: (repos: Repos) => Promise<T>): Pr
 export type { AiCallRecord, AiPurpose } from "./aiCalls";
 export type { ConnectionWrite, Creator, CreatorStatus, SchedulableCreator, TokenMaterial } from "./creators";
 export type { CommentInsight, Report, ReportPoint, ThemeAggregate } from "./insights";
-export type { Plan, Suggestion, SuggestionStatus, SuggestionWrite } from "./plans";
+export type { Plan, Suggestion, SuggestionStatus, SuggestionWrite, UsedSuggestion } from "./plans";
 export type { PostCursor, PostListFilter, PostView } from "./posts";
 export type { Run, RunStatus, RunTrigger } from "./runs";
 export type { BaselineView, ScoreWrite, TrendPoint, WeightsSnapshot } from "./scores";

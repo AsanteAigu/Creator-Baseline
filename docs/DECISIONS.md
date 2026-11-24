@@ -534,3 +534,49 @@ follow the range. The overview cards keep 28 days.
 
 Alternatives: silently anchor "last 28 days" to the last post (mislabels the period); always
 show 12 months (hides recent change for active accounts).
+
+## D-047 - Used ideas leave their day, are remembered, and are tracked against their post
+
+Marking an idea "used" now moves it off the week's calendar into an "Is the plan working?"
+tracker, and writes one new idea for the same day (today or later in the current week only).
+Used ideas are the plan's memory: every plan and replacement prompt lists them with how their
+post did and is told never to repeat them, and code enforces it (a normalised-title match drops
+a repeat from a weekly plan, and fails validation of a replacement so the model retries once).
+The tracker matches each used idea to the same-format post closest to its planned day, from two
+days before the planned or marked day to seven days after, at read time; one post counts for
+one idea, oldest decision first. The verdict compares the plan posts' mean score with 1.00 (the
+creator's usual) and with their other scored posts over the same span, and says "too early"
+below two scored plan posts. Any member may trigger a replacement, as any member may mark an
+idea used (D-006); it respects the AI budget, is rate-limited (10 per user per 10 minutes),
+and never adds a second idea to a day that already has one. A failed replacement leaves the
+mark saved and says why. No schema change: status `used` was already stored.
+
+Alternatives: store a `post_id` on the suggestion (needs a §4 change and a way to pick the
+post); keep used ideas in place (the client asked for the day to be freed); regenerate the
+whole week (costs a full plan call and replaces ideas the client may be about to use).
+
+## D-048 - Faster updates: age-based insight refresh, and the summary after the response
+
+Every run re-read insights for every post in the last 120 days, one call at a time (§6 keeps
+one in-flight request per creator). Insights are now re-read by age: every run under 2 days,
+every 3 hours under 7 days, every 12 hours under 30 days, every 48 hours under 120 days, never
+after once read. Most runs make far fewer Instagram calls. "Update now" also returns once posts
+are scored: the run is marked succeeded then, and the comments, themes, report and plan step
+runs after the response (`after()`, `maxDuration = 300`). A late AI failure is written to the
+run's note. Scheduled runs (Inngest) keep doing everything in one go.
+
+Alternatives: parallel Instagram calls (breaks §6's rate-limit rule); batch insights via
+`?ids=` (one unsupported metric fails the whole batch; untestable without live accounts).
+
+## D-049 - A computed performance profile drives the plan
+
+Plans were steered only by the top and bottom few posts. A deterministic profile now ranks this
+creator's formats and weekdays by median score (buckets of at least 3 scored posts), adds how
+posts from earlier plan ideas scored by format, and turns that into plain guidance ("Lead with
+reels: median score 1.60 over 12 posts"). It goes into both plan prompts, which must choose
+formats and days from it, and is shown on the plan page under the week's focus. Software works
+out what works; the model only writes ideas that follow it.
+
+Alternatives: a trained ranking model (three creators' data is far too little to train on, and
+it would be opaque to the client); let the model infer patterns from raw posts (it was doing
+that and over-weighting a handful of posts).

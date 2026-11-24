@@ -36,6 +36,14 @@ export interface SuggestionWrite {
   suggestedDate: string;
 }
 
+export interface UsedSuggestion {
+  id: string;
+  title: string;
+  format: PostFormat;
+  suggestedDate: string | null;
+  decidedAt: Date;
+}
+
 interface SuggestionDbRow {
   id: string;
   plan_id: string;
@@ -105,7 +113,9 @@ export function plansRepo(tx: Tx) {
     /**
      * Updates the week's plan in place (§7/§8): the plan row is upserted, suggestions the
      * client has already decided on are kept, and only undecided ones are replaced — so the
-     * week never grows past `target` ideas and a re-run never duplicates them.
+     * week never grows past `target` ideas and a re-run never duplicates them. Used ideas
+     * have left their day for the tracker (D-047), so only "not used" ones take up room, and
+     * new ideas go to the days those leave free first.
      */
     async upsertWeek(input: {
       creatorId: string;
@@ -126,11 +136,16 @@ export function plansRepo(tx: Tx) {
       if (!plan) throw new Error("content plan upsert returned no row");
 
       await tx`delete from public.plan_suggestions where plan_id = ${plan.id} and status = 'proposed'`;
-      const [{ decided } = { decided: 0 }] = await tx<{ decided: number }[]>`
-        select count(*)::int as decided from public.plan_suggestions where plan_id = ${plan.id}
+      const kept = await tx<{ day: string | null }[]>`
+        select to_char(suggested_date, 'YYYY-MM-DD') as day from public.plan_suggestions
+        where plan_id = ${plan.id} and status = 'not_used'
       `;
-      const room = Math.max(0, input.target - decided);
-      const rows = input.ideas.slice(0, room).map((i) => ({
+      const taken = new Set(kept.map((k) => k.day));
+      const room = Math.max(0, input.target - kept.length);
+      const ordered = [...input.ideas].sort(
+        (a, b) => Number(taken.has(a.suggestedDate)) - Number(taken.has(b.suggestedDate)),
+      );
+      const rows = ordered.slice(0, room).map((i) => ({
         plan_id: plan.id,
         title: i.title,
         format: i.format,
@@ -154,6 +169,52 @@ export function plansRepo(tx: Tx) {
         order by s.decided_at desc nulls last
         limit ${limit}
       `;
+    },
+
+    /** Every idea the client has used for this creator: the memory that stops repeats (D-047). */
+    async usedForCreator(creatorId: string, limit: number): Promise<UsedSuggestion[]> {
+      const rows = await tx<
+        { id: string; title: string; format: PostFormat; suggested_date: string | null; decided_at: Date }[]
+      >`
+        select s.id, s.title, s.format, to_char(s.suggested_date, 'YYYY-MM-DD') as suggested_date, s.decided_at
+        from public.plan_suggestions s
+        join public.content_plans cp on cp.id = s.plan_id
+        where cp.creator_id = ${creatorId} and s.status = 'used' and s.decided_at is not null
+        order by s.decided_at desc
+        limit ${limit}
+      `;
+      return rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        format: r.format,
+        suggestedDate: r.suggested_date,
+        decidedAt: r.decided_at,
+      }));
+    },
+
+    /** The suggestion with the plan it belongs to. Null when missing or hidden by RLS. */
+    async getSuggestion(id: string): Promise<(Suggestion & { creatorId: string; weekStart: string }) | null> {
+      const [row] = await tx<(SuggestionDbRow & { creator_id: string; week_start: string })[]>`
+        select s.id, s.plan_id, s.title, s.format, s.hook, s.reason, s.data_ref,
+               to_char(s.suggested_date, 'YYYY-MM-DD') as suggested_date, s.status, s.decided_at,
+               cp.creator_id, to_char(cp.week_start, 'YYYY-MM-DD') as week_start
+        from public.plan_suggestions s
+        join public.content_plans cp on cp.id = s.plan_id
+        where s.id = ${id}
+      `;
+      return row ? { ...toSuggestion(row), creatorId: row.creator_id, weekStart: row.week_start } : null;
+    },
+
+    async insertSuggestion(planId: string, idea: SuggestionWrite): Promise<Suggestion> {
+      const [row] = await tx<SuggestionDbRow[]>`
+        insert into public.plan_suggestions (plan_id, title, format, hook, reason, data_ref, suggested_date)
+        values (${planId}, ${idea.title}, ${idea.format}, ${idea.hook}, ${idea.reason}, ${idea.dataRef},
+                ${idea.suggestedDate}::date)
+        returning id, plan_id, title, format, hook, reason, data_ref,
+                  to_char(suggested_date, 'YYYY-MM-DD') as suggested_date, status, decided_at
+      `;
+      if (!row) throw new Error("plan suggestion insert returned no row");
+      return toSuggestion(row);
     },
 
     /** Null when the suggestion does not exist or RLS hides it from the caller. */

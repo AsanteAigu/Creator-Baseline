@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { mockPlan, mockReport, mockThemes } from "@/lib/services/mockAi";
+import { mockPlan, mockReplacement, mockReport, mockThemes } from "@/lib/services/mockAi";
 import * as planPrompt from "@/prompts/plan/system";
 import * as reportPrompt from "@/prompts/report/system";
 import * as themesPrompt from "@/prompts/themes/system";
 import type { AiProvider, AiRequest, AiResponse } from "./provider";
 import { MockAiProvider } from "./mock";
-import { planOutputSchema, reportOutputSchema, themesOutputSchema } from "./schemas";
+import { planOutputSchema, planReplacementSchema, reportOutputSchema, themesOutputSchema } from "./schemas";
 import { AiOutputError, extractJson, generateStructured } from "./structured";
 
 function scriptedProvider(...replies: string[]): AiProvider & { calls: AiRequest[] } {
@@ -138,6 +138,20 @@ const PLAN_INPUT: planPrompt.PlanInput = {
   history: REPORT_INPUT.history,
   themes: REPORT_INPUT.themes,
   decided: [{ title: "Garlic noodles", format: "reel", status: "used" }],
+  used: [{ title: "Garlic noodles", format: "reel", result: "score 1.62 (strong)" }],
+  profile: {
+    guidance: ["Lead with reels: median score 1.40 over 12 posts."],
+    formats: [{ key: "reel", posts: 12, median: 1.4, strongShare: 0.33 }],
+    weekdays: [{ key: "Tuesday", posts: 5, median: 1.2, strongShare: 0.2 }],
+    planIdeas: [],
+  },
+};
+
+const REPLACEMENT_INPUT: planPrompt.ReplacementInput = {
+  ...PLAN_INPUT,
+  date: "2026-11-12",
+  replacing: { title: "Garlic noodles", format: "reel" },
+  others: [{ title: "Pantry pasta", format: "carousel", date: "2026-11-13" }],
 };
 
 describe("mock provider", () => {
@@ -155,6 +169,18 @@ describe("mock provider", () => {
   it("satisfies the plan schema with seven ideas dated inside the week", () => {
     const out = planOutputSchema.parse(mockPlan(PLAN_INPUT));
     expect(out.ideas.map((i) => i.suggested_date)).toEqual(PLAN_INPUT.weekDates);
+  });
+
+  it("never repeats a used idea in the plan", () => {
+    const used = mockPlan(PLAN_INPUT).ideas.map((i) => i.title);
+    const again = mockPlan({ ...PLAN_INPUT, used: used.map((title) => ({ title, format: "reel", result: "never posted" })) });
+    for (const idea of again.ideas) expect(used).not.toContain(idea.title);
+  });
+
+  it("writes one replacement on the free day that repeats nothing taken", () => {
+    const out = planReplacementSchema.parse(mockReplacement(REPLACEMENT_INPUT));
+    expect(out.idea.suggested_date).toBe("2026-11-12");
+    expect(["Garlic noodles", "Pantry pasta"]).not.toContain(out.idea.title);
   });
 
   it("round-trips through generateStructured", async () => {
@@ -182,6 +208,10 @@ describe("prompts", () => {
     expect(planPrompt.PROMPT_VERSION).toMatchSnapshot();
     expect(planPrompt.SYSTEM_PROMPT).toMatchSnapshot();
     expect(planPrompt.buildUserMessage(PLAN_INPUT)).toMatchSnapshot();
+  });
+  it("plan replacement prompt", () => {
+    expect(planPrompt.REPLACE_SYSTEM_PROMPT).toMatchSnapshot();
+    expect(planPrompt.buildReplacementMessage(REPLACEMENT_INPUT)).toMatchSnapshot();
   });
 
   it("keeps comments out of the system prompt and wraps them as data", () => {

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const EMAIL = process.env.E2E_EMAIL ?? "owner@demo.agency";
 const PASSWORD = process.env.E2E_PASSWORD ?? "creator-baseline-demo";
 
-test("login → dashboard → account → scores → toggle a suggestion → reload → persisted", async ({ page }) => {
+test("login → dashboard → account → scores → use an idea → tracked → reload → persisted", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login$/);
 
@@ -22,19 +22,16 @@ test("login → dashboard → account → scores → toggle a suggestion → rel
   await page.getByRole("link", { name: "This week's plan" }).first().click();
   await expect(page.getByRole("heading", { name: "This week's plan" })).toBeVisible();
 
-  const card = page.getByTestId("suggestion-card").first();
-  const used = card.getByTestId("suggestion-used");
-  const wasPressed = (await used.getAttribute("aria-pressed")) === "true";
-  const expected = wasPressed ? "false" : "true";
-
+  // Used ideas leave their day for the tracker and a new idea takes the day (D-047).
+  const card = page.getByTestId("suggestion-card").last();
+  const title = (await card.getByRole("heading").first().textContent())?.trim() ?? "";
   const saved = page.waitForResponse((r) => r.url().includes("/api/suggestions/") && r.request().method() === "PATCH");
-  await used.click();
+  await card.getByTestId("suggestion-used").click();
   expect((await saved).status()).toBe(200);
-  await expect(used).toHaveAttribute("aria-pressed", expected);
 
+  const tracker = page.locator("#tracker");
+  await expect(tracker.getByTestId("tracked-idea").filter({ hasText: title })).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId("suggestion-card").first().getByTestId("suggestion-used")).toHaveAttribute(
-    "aria-pressed",
-    expected,
-  );
+  await expect(tracker.getByTestId("tracked-idea").filter({ hasText: title })).toBeVisible();
+  await expect(page.getByTestId("suggestion-card").filter({ hasText: title })).toHaveCount(0);
 });

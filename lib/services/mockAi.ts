@@ -1,6 +1,7 @@
-import type { PlanOutput, ReportOutput, ThemesOutput } from "@/lib/ai/schemas";
-import type { PlanInput } from "@/prompts/plan/system";
+import type { PlanOutput, PlanReplacementOutput, ReportOutput, ThemesOutput } from "@/lib/ai/schemas";
+import type { PlanInput, ReplacementInput } from "@/prompts/plan/system";
 import type { ReportInput, ReportPostInput } from "@/prompts/report/system";
+import { isRepeat } from "./planTracking";
 
 /**
  * Deterministic stand-ins for the three AI calls when AI_PROVIDER=mock. They are built from
@@ -131,7 +132,19 @@ const HOOKS = [
   "Three mistakes I made the first time, so you don't.",
 ];
 
+const SEQUELS = ["", ", part two", ", part three", ", part four", ", the next step"];
+
+/** The first of base, "base, part two", ... that is not already taken, as a real model is told to. */
+function freshTitle(base: string, taken: string[]): string | null {
+  for (const suffix of SEQUELS) {
+    const title = `${base}${suffix}`;
+    if (!isRepeat(title, taken)) return title;
+  }
+  return null;
+}
+
 export function mockPlan(input: PlanInput): PlanOutput {
+  const taken = input.used.map((u) => u.title);
   // Distinct source posts first, then audience themes, so ideas do not repeat.
   const sources = [...input.top, ...input.bottom.slice(0, 2)].filter(
     (p, i, all) => all.findIndex((q) => q.caption === p.caption) === i,
@@ -144,8 +157,9 @@ export function mockPlan(input: PlanInput): PlanOutput {
     if (useTheme) {
       const theme = themes[t % themes.length]!;
       t += 1;
+      const base = `Answer the comments: ${theme.label.toLowerCase()}`;
       return {
-        title: `Answer the comments: ${theme.label.toLowerCase()}`,
+        title: freshTitle(base, taken) ?? base,
         format: "reel" as const,
         hook: HOOKS[2]!,
         reason: `This came up ${theme.count} times in the latest comment sample.`,
@@ -157,10 +171,11 @@ export function mockPlan(input: PlanInput): PlanOutput {
     s += 1;
     const [signal, r] = src ? extremeSignal(src, "max") : ["likes", 1];
     const strong = src ? src.score >= 1 : true;
+    const base = src
+      ? `${strong ? "Follow-up to" : "New angle on"} "${src.caption.slice(0, 60)}"`
+      : "Audience favourite, refreshed";
     return {
-      title: src
-        ? `${strong ? "Follow-up to" : "New angle on"} "${src.caption.slice(0, 60)}"`
-        : "Audience favourite, refreshed",
+      title: freshTitle(base, taken) ?? base,
       format: (src?.format ?? "reel") as PlanOutput["ideas"][number]["format"],
       hook: HOOKS[i % HOOKS.length]!,
       reason: src
@@ -177,6 +192,51 @@ export function mockPlan(input: PlanInput): PlanOutput {
   return {
     summary: `Build the week around what is scoring above usual for @${input.username}, and answer what the audience keeps asking for in comments.`,
     ideas,
+  };
+}
+
+/** One idea for the free day: the best-scoring source whose follow-up is not taken yet. */
+export function mockReplacement(input: ReplacementInput): PlanReplacementOutput {
+  const taken = [...input.used.map((u) => u.title), ...input.others.map((o) => o.title), input.replacing.title];
+  const sources = [...input.top].sort((a, b) => b.score - a.score);
+  for (const src of sources) {
+    const title = freshTitle(`Follow-up to "${src.caption.slice(0, 60)}"`, taken);
+    if (!title) continue;
+    const [signal, r] = extremeSignal(src, "max");
+    return {
+      idea: {
+        title,
+        format: src.format as PlanReplacementOutput["idea"]["format"],
+        hook: HOOKS[0]!,
+        reason: `Its ${SIGNAL_NAMES[signal] ?? signal} ran at ${r.toFixed(1)}x usual, the strongest signal not yet followed up.`,
+        data_ref: `${capitalise(formatWord(src.format))}, ${day(src.postedOn)}, score ${src.score.toFixed(2)}`,
+        suggested_date: input.date,
+      },
+    };
+  }
+  for (const theme of input.themes) {
+    const title = freshTitle(`Answer the comments: ${theme.label.toLowerCase()}`, taken);
+    if (!title) continue;
+    return {
+      idea: {
+        title,
+        format: "reel",
+        hook: HOOKS[2]!,
+        reason: `This came up ${theme.count} times in the latest comment sample.`,
+        data_ref: `Audience theme: ${theme.label}`,
+        suggested_date: input.date,
+      },
+    };
+  }
+  return {
+    idea: {
+      title: freshTitle("Behind the scenes of this week", taken) ?? `Behind the scenes, ${input.date}`,
+      format: "reel",
+      hook: HOOKS[1]!,
+      reason: "Every scored post and theme already has a follow-up, so this shows the process instead.",
+      data_ref: "No unused post or theme left this week",
+      suggested_date: input.date,
+    },
   };
 }
 

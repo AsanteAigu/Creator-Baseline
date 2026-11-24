@@ -35,19 +35,21 @@ export const reportOutputSchema = z.object({
 });
 export type ReportOutput = z.infer<typeof reportOutputSchema>;
 
+export const planIdeaSchema = z.object({
+  title: z.string().min(1).max(120),
+  format: z.enum(["reel", "image", "carousel"]),
+  hook: z.string().min(1).max(200),
+  reason: z.string().min(1).max(300),
+  data_ref: z.string().min(1).max(160),
+  suggested_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
+});
+
 export const planOutputSchema = z.object({
   summary: z.string().min(1).max(400),
-  ideas: z
-    .array(
-      z.object({
-        title: z.string().min(1).max(120),
-        format: z.enum(["reel", "image", "carousel"]),
-        hook: z.string().min(1).max(200),
-        reason: z.string().min(1).max(300),
-        data_ref: z.string().min(1).max(160),
-        suggested_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
-      }),
-    )
-    .length(7),
+  ideas: z.array(planIdeaSchema).length(7),
 });
 export type PlanOutput = z.infer<typeof planOutputSchema>;
+
+/** One idea to take the place of an idea the client has just used (D-047). */
+export const planReplacementSchema = z.object({ idea: planIdeaSchema });
+export type PlanReplacementOutput = z.infer<typeof planReplacementSchema>;
