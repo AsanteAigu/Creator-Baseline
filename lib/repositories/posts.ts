@@ -191,13 +191,16 @@ export function postsRepo(tx: Tx) {
 
     /** Media ids posted since a date, newest first — the comment sample is drawn from these. */
     /** Every media id stored for a creator: posts already fetched once. */
-    async knownMediaIds(creatorId: string): Promise<Set<string>> {
-      const rows = await tx<{ ig_media_id: string }[]>`
-        select p.ig_media_id from public.posts p
+    /** When each post's insights were last read, keyed by Instagram media id. */
+    async lastCapturedByMedia(creatorId: string): Promise<Map<string, Date>> {
+      const rows = await tx<{ ig_media_id: string; captured_at: Date }[]>`
+        select p.ig_media_id, max(pm.captured_at) as captured_at
+        from public.posts p
+        join public.post_metrics pm on pm.post_id = p.id
         where p.creator_id = ${creatorId}
-          and exists (select 1 from public.post_metrics pm where pm.post_id = p.id)
+        group by p.ig_media_id
       `;
-      return new Set(rows.map((r) => r.ig_media_id));
+      return new Map(rows.map((r) => [r.ig_media_id, r.captured_at]));
     },
 
     async recentMediaIds(creatorId: string, since: Date): Promise<string[]> {

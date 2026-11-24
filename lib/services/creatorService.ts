@@ -238,14 +238,21 @@ export async function getLatestReport(userId: string, creatorId: string): Promis
   });
 }
 
-/** Manual "update now". Owners and admins only; the route layer rate-limits it. */
-export async function requestManualRun(userId: string, creatorId: string): Promise<IngestResult> {
+/**
+ * Manual "update now". Owners and admins only; the route layer rate-limits it. `deferAi`
+ * lets the route return once scores are saved and write the summary afterwards (D-048).
+ */
+export async function requestManualRun(
+  userId: string,
+  creatorId: string,
+  deferAi?: (task: () => Promise<void>) => void,
+): Promise<IngestResult> {
   const context = await getWorkspaceContext(userId);
   await withRepos(asUser(userId), (r) => requireCreator(r, creatorId));
   if (context.role !== "owner" && context.role !== "admin") {
     throw forbidden("Only owners and admins can start an update.");
   }
-  const result = await ingestCreator(creatorId, { trigger: "manual" });
+  const result = await ingestCreator(creatorId, { trigger: "manual", deferAi });
   if (result.status === "skipped") {
     throw new AppError("CONFLICT", "An update for this account is already running.");
   }

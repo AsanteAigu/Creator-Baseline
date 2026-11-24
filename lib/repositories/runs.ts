@@ -74,6 +74,13 @@ export function runsRepo(tx: Tx) {
      * A run whose AI step degraded still succeeds (§7); the note records why the written
      * summary is missing so the dashboard can say so and offer a retry.
      */
+    /** Records the AI step's outcome when it finished after the run did (D-048). */
+    async setNote(runId: string, note: { code: string; message: string }): Promise<void> {
+      await tx`
+        update public.runs set error_code = ${note.code}, error_message = ${note.message} where id = ${runId}
+      `;
+    },
+
     async succeed(
       runId: string,
       now: Date,

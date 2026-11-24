@@ -13,6 +13,7 @@ import {
 import { asSystem, withRepos, type RunTrigger } from "@/lib/repositories";
 import { sampleComments, MAX_SAMPLED_COMMENTS } from "./commentSample";
 import { ensureWeekPlan } from "./planService";
+import { insightsDue } from "./refreshSchedule";
 import { REPORT_PERIOD_DAYS, generateReportForRun } from "./reportService";
 import { scoreCreator, settingsToConfig } from "./scoringService";
 import { intervalHours, runWindowStart } from "./time";
@@ -25,8 +26,6 @@ const HOUR_MS = 60 * 60 * 1000;
  * history for a baseline (D-045). Listing is cheap; insights are the per-post cost.
  */
 const LOOKBACK_DAYS = 365;
-/** Insights are re-read only while they still move; older posts are read once (D-045). */
-const INSIGHTS_REFRESH_DAYS = 120;
 /** Older posts read per run, so a large account's first year is spread over a few runs. */
 const BACKFILL_PER_RUN = 60;
 /** Comments are sampled from the last fortnight of posts. */
@@ -37,6 +36,11 @@ const ORPHAN_AFTER_MS = 30 * 60 * 1000;
 
 export interface IngestOptions {
   trigger: RunTrigger;
+  /**
+   * When given, the AI steps (comments, themes, report, plan) are handed to it instead of
+   * awaited, so a manual update returns as soon as scores are saved (D-048).
+   */
+  deferAi?: (task: () => Promise<void>) => void;
   now?: Date;
   /** Injected in tests; production uses the env-selected implementations. */
   source?: InstagramSource;
@@ -44,7 +48,15 @@ export interface IngestOptions {
 }
 
 export type IngestResult =
-  | { status: "succeeded"; runId: string; postsSeen: number; postsScored: number; aiNote: string | null }
+  | {
+      status: "succeeded";
+      runId: string;
+      postsSeen: number;
+      postsScored: number;
+      aiNote: string | null;
+      /** True when the written summary is still being produced after this result. */
+      aiPending: boolean;
+    }
   | { status: "failed"; runId: string; errorCode: string; errorMessage: string }
   | { status: "skipped"; reason: "already_running" };
 
@@ -93,15 +105,14 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
       isScorableMedia,
     );
     postsSeen = media.length;
-    const known = await withRepos(asSystem(), (r) => r.posts.knownMediaIds(creator.id));
-    const refreshFrom = now.getTime() - INSIGHTS_REFRESH_DAYS * DAY_MS;
+    const lastCaptured = await withRepos(asSystem(), (r) => r.posts.lastCapturedByMedia(creator.id));
     const insights: { media: RawMedia; metrics: RawInsights }[] = [];
     let backfilled = 0;
     for (const m of media) {
-      const old = m.timestamp.getTime() < refreshFrom;
-      if (old && known.has(m.id)) continue;
-      if (old && backfilled >= BACKFILL_PER_RUN) continue;
-      if (old) backfilled += 1;
+      const due = insightsDue(m.timestamp, lastCaptured.get(m.id) ?? null, now);
+      if (due === "skip") continue;
+      if (due === "backfill" && backfilled >= BACKFILL_PER_RUN) continue;
+      if (due === "backfill") backfilled += 1;
       try {
         insights.push({ media: m, metrics: await source.getMediaInsights(igCreator, m) });
       } catch (err) {
@@ -165,7 +176,7 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
   }
 
   // 6-8. AI: themes, report, plan. Degrades, never fails the run.
-  const aiNote = await runAiSteps({
+  const aiInput = {
     creatorId: creator.id,
     username: creator.username,
     workspaceId: creator.workspaceId,
@@ -176,16 +187,28 @@ export async function ingestCreator(creatorId: string, opts: IngestOptions): Pro
     source,
     igCreator,
     ai: opts.ai,
-  });
+  };
+  const finish = (note: { code: string; message: string } | null) =>
+    withRepos(asSystem(), async (r) => {
+      await r.runs.succeed(run.id, now, postsSeen, postsScored, note);
+      await r.creators.markSynced(creator.id, now);
+      // A run that reached Instagram proves the token works again.
+      if (creator.status === "needs_reauth") await r.creators.setStatus(creator.id, "active");
+    });
 
-  await withRepos(asSystem(), async (r) => {
-    await r.runs.succeed(run.id, now, postsSeen, postsScored, aiNote);
-    await r.creators.markSynced(creator.id, now);
-    // A run that reached Instagram proves the token works again.
-    if (creator.status === "needs_reauth") await r.creators.setStatus(creator.id, "active");
-  });
+  if (opts.deferAi) {
+    // Scores are saved and shown now; the summary follows. runAiSteps never throws.
+    await finish(null);
+    opts.deferAi(async () => {
+      const note = await runAiSteps(aiInput);
+      if (note) await withRepos(asSystem(), (r) => r.runs.setNote(run.id, note));
+    });
+    return { status: "succeeded", runId: run.id, postsSeen, postsScored, aiNote: null, aiPending: true };
+  }
 
-  return { status: "succeeded", runId: run.id, postsSeen, postsScored, aiNote: aiNote?.code ?? null };
+  const aiNote = await runAiSteps(aiInput);
+  await finish(aiNote);
+  return { status: "succeeded", runId: run.id, postsSeen, postsScored, aiNote: aiNote?.code ?? null, aiPending: false };
 }
 
 async function runAiSteps(input: {
